@@ -1,18 +1,7 @@
 
-# from CombineInfoLists import combine_infolists
-# from MakeJSON import make_json, make_lex_json
-# from SaveJSON import save_json
 import os
 import json
 from conllu import parse, TokenList
-# from decimal import Decimal
-# from ClearTags import clear_tags
-# from tkinter import *
-# from tkinter import ttk
-# from tkinter import font
-# from nltk import edit_distance
-# import unidecode
-# import platform
 
 
 def get_data(file_name):
@@ -49,6 +38,30 @@ def get_data(file_name):
     return file_data
 
 
+def get_tokens(sentence):
+    """return just the tokens from a parsed .conllu sentence"""
+    tokens = [tok.get("form") for tok in sentence]
+    return tokens
+
+
+def get_lemmas(sentence):
+    """return just the lemmata from a parsed .conllu sentence"""
+    lemmas = [tok.get("lemma") for tok in sentence]
+    return lemmas
+
+
+def get_pos(sentence):
+    """return just the parts-of-speech from a parsed .conllu sentence"""
+    pos = [tok.get("upos") for tok in sentence]
+    return pos
+
+
+def get_feats(sentence):
+    """return just the features from a parsed .conllu sentence"""
+    feats = [tok.get("feats") for tok in sentence]
+    return feats
+
+
 if __name__ == "__main__":
 
     # Open the Wb. Glosses JSON file as wb_data
@@ -62,9 +75,11 @@ if __name__ == "__main__":
     # oi_lex = get_data("Working_lexicon_file_1.json")
     oi_lex = get_data("Working_lexicon_file_2.json")
 
-    # print(wb_data)
-    # print(sg_data)
-    # print(oi_lex)
+    # print(wb_data[0])
+    # print(sg_data[0])
+    # print(oi_lex[0])
 
-    for token in sg_data[0]:
-        print(token)
+    # print(get_tokens(sg_data[0]))
+    # print(get_lemmas(sg_data[0]))
+    # print(get_pos(sg_data[0]))
+    # print(get_feats(sg_data[0]))
