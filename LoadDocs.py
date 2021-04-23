@@ -2,6 +2,7 @@
 import os
 import json
 from conllu import parse, TokenList
+from collections import OrderedDict
 
 
 def get_data(file_name):
@@ -38,6 +39,85 @@ def get_data(file_name):
     return file_data
 
 
+def conllu_parse(json_file, tok_style=2, tagged_only=True):
+    """takes the Wb. Glosses from the .json file
+       changes their format to match the Sg. Glosses from the .conllu file"""
+
+    # Extract data from the JSON file format
+    parse_list = list()
+    for level_0 in json_file:
+        fol = level_0.get("folios")
+        for level_1 in fol:
+            fol_col = level_1.get("folio")
+            glosses = level_1.get("glosses")
+            for level_2 in glosses:
+                glossnum = level_2.get("glossNo")
+                gloss_text = level_2.get("glossText")
+                gloss_trans = level_2.get("glossTrans")
+                gloss_hand = level_2.get("glossHand")
+                tokens = level_2.get(f"glossTokens{tok_style}")
+                # Check that glosses have been tagged before inclusion by ensuring they contain at least one POS which
+                # does not appear in Latin/Greek-only glosses.
+                if tagged_only:
+                    vernacular_pos = ['ADJ', 'ADP', 'AUX', 'DET', 'NOUN', 'NUM',
+                                      'PART', 'PRON', 'PROPN', 'SCONJ', 'VERB']
+                    if [i for i in [tok[1] for tok in tokens] if i in vernacular_pos]:
+                        parse_list.append([fol_col[3:] + glossnum, gloss_text, gloss_trans, gloss_hand,
+                                           [[tok[0], tok[1], tok[2], tok[3]] for tok in tokens]])
+                else:
+                    parse_list.append([fol_col[3:] + glossnum, gloss_text, gloss_trans, gloss_hand,
+                                       [[tok[0], tok[1], tok[2], tok[3]] for tok in tokens]])
+
+    # Compile the data into CoNLL_U file format
+    conllu_format = None
+    for sentnum, sent in enumerate(parse_list):
+        sent_id = sentnum + 1
+        this_id = f'# sent_id = {sent_id}'
+        gloss_id = sent[0]
+        ref = f'# reference = {gloss_id}'
+        sent_toks = sent[4]
+        full_gloss = f'# text = {sent[1]}'
+        full_gloss = "".join(full_gloss.split("<em>"))
+        full_gloss = "".join(full_gloss.split("</em>"))
+        full_gloss = "".join(full_gloss.split("<sup>"))
+        full_gloss = "".join(full_gloss.split("</sup>"))
+        translation = f'# translation = {sent[2]}'
+        translation = "".join(translation.split("<em>"))
+        translation = "".join(translation.split("</em>"))
+        translation = "".join(translation.split("<sup>"))
+        translation = "".join(translation.split("</sup>"))
+        hand = f"# scribe = {sent[3]}"
+        meta = f'{this_id}\n{ref}\n{hand}\n{full_gloss}\n{translation}\n'
+        sent_list = list()
+        for i, tok_data in enumerate(sent_toks):
+            tok_id = i + 1
+            tok = tok_data[0]
+            head = tok_data[2]
+            if not head:
+                head = "_"
+            pos = tok_data[1]
+            feats = tok_data[3]
+            if pos in ["<Latin>", "<Latin CCONJ>", "<Greek>"] and (not feats or feats == "Foreign=Yes"):
+                pos = "X"
+                feats = "Foreign=Yes"
+            elif pos in ["<Latin>", "<Latin CCONJ>"]:
+                raise RuntimeError(f"Latin word found with features: {feats}")
+            if feats:
+                feats = feats.split("|")
+                feats = OrderedDict({i.split("=")[0]: i.split("=")[1] for i in feats})
+            compiled_tok = OrderedDict({'id': tok_id, 'form': tok, 'lemma': head, 'upostag': pos, 'xpostag': None,
+                                        'feats': feats, 'head': None, 'deprel': None, 'deps': None, 'misc': None})
+            sent_list.append(compiled_tok)
+        sent_list = TokenList(sent_list).serialize()
+        if not conllu_format:
+            conllu_format = meta + sent_list
+        else:
+            conllu_format = conllu_format + meta + sent_list
+    conllu_format = conllu_format.strip("\n") + "\n"
+    conllu_format = parse(conllu_format)
+    return conllu_format
+
+
 def get_tokens(sentence):
     """return just the tokens from a parsed .conllu sentence"""
     tokens = [tok.get("form") for tok in sentence]
@@ -65,7 +145,7 @@ def get_feats(sentence):
 if __name__ == "__main__":
 
     # Open the Wb. Glosses JSON file as wb_data
-    wb_data = get_data("Wb. Manual Tokenisation.json")
+    wb_data = conllu_parse(get_data("Wb. Manual Tokenisation.json"))
 
     # # Open the Sg. Glosses CoNLL_U file as sg_data
     # sg_data = get_data("sga_dipsgg-ud-test_combined_POS.conllu")
