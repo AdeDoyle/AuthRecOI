@@ -142,6 +142,16 @@ def get_feats(sentence):
     return feats
 
 
+def get_toks_data(sentence):
+    """return all token data for a sentence"""
+    return zip(get_tokens(sentence), get_lemmas(sentence), get_pos(sentence), get_feats(sentence))
+
+
+def get_metadata(sentence):
+    """return all metadata for a sentence in the form of a dictionary"""
+    return sentence.metadata
+
+
 if __name__ == "__main__":
 
     # Open the Wb. Glosses JSON file as wb_data
@@ -155,11 +165,28 @@ if __name__ == "__main__":
     # oi_lex = get_data("Working_lexicon_file_1.json")
     oi_lex = get_data("Working_lexicon_file_2.json")
 
+    # TEST FUNCTIONS
+
+    # Test get_data and conllu_parse functions
+
     # print(wb_data[0])
     # print(sg_data[0])
     # print(oi_lex[0])
 
+    # Test get_tokens, get_lemmas, get_pos and get_feats functions
+
     # print(get_tokens(sg_data[0]))
+    # print(get_tokens(wb_data[0]))
     # print(get_lemmas(sg_data[0]))
+    # print(get_lemmas(wb_data[0]))
     # print(get_pos(sg_data[0]))
+    # print(get_pos(wb_data[0]))
     # print(get_feats(sg_data[0]))
+    # print(get_feats(wb_data[0]))
+
+    # Test get_sent_data and get_toks_data functions
+    # print(get_toks_data(sg_data[0]))
+    # print(get_toks_data(wb_data[0]))
+
+    # print(get_metadata(sg_data[0]))
+    # print(get_metadata(wb_data[0]))
