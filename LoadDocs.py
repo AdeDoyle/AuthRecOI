@@ -86,7 +86,7 @@ def conllu_parse(json_file, tok_style=2, tagged_only=True):
         translation = "".join(translation.split("</em>"))
         translation = "".join(translation.split("<sup>"))
         translation = "".join(translation.split("</sup>"))
-        hand = f"# scribe = {sent[3]}"
+        hand = f'# scribe = {sent[3]}'
         meta = f'{this_id}\n{ref}\n{hand}\n{full_gloss}\n{translation}\n'
         sent_list = list()
         for i, tok_data in enumerate(sent_toks):
