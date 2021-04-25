@@ -1,6 +1,7 @@
 
 from LoadDocs import get_data, conllu_parse, get_metadata, get_pos
 from conllu import parse, TokenList
+import itertools
 
 
 # List lemmata and features of tokens which cannot be a sentence on their own, and which cannot end a sentence
@@ -141,8 +142,11 @@ def clean_punct(sentence):
             else:
                 cur_sent.append(tok_data)
 
-        split_sents = split_sents.strip("\n") + "\n"
-        split_sents = parse(split_sents)
+        if not split_sents:
+            split_sents = []
+        else:
+            split_sents = split_sents.strip("\n") + "\n"
+            split_sents = parse(split_sents)
 
         # Renumber each substring's sentence ID to separately identify any splits made
         for i, sub_sent in enumerate(split_sents):
@@ -241,8 +245,11 @@ def clean_unknown(sentence):
             else:
                 cur_sent.append(tok_data)
 
-        split_sents = split_sents.strip("\n") + "\n"
-        split_sents = parse(split_sents)
+        if not split_sents:
+            split_sents = []
+        else:
+            split_sents = split_sents.strip("\n") + "\n"
+            split_sents = parse(split_sents)
 
         # Renumber each substring's sentence ID to separately identify any splits made
         for i, sub_sent in enumerate(split_sents):
@@ -366,8 +373,11 @@ def remove_foreign(sentence):
         else:
             cur_sent.append(tok_data)
 
-    split_sents = split_sents.strip("\n") + "\n"
-    split_sents = parse(split_sents)
+    if not split_sents:
+        split_sents = []
+    else:
+        split_sents = split_sents.strip("\n") + "\n"
+        split_sents = parse(split_sents)
 
     # Renumber each substring's sentence ID to separately identify any splits made
     for i, sub_sent in enumerate(split_sents):
@@ -377,25 +387,46 @@ def remove_foreign(sentence):
     return split_sents
 
 
+def clean_all(sentence):
+    """Apply all cleaning to a single sentence, i.e. split it on punctuation, unknown POS and foreign words"""
+    split_sents = clean_punct(sentence)
+    split_sents = list(itertools.chain(*[clean_unknown(splitsent) for splitsent in split_sents]))
+    split_sents = list(itertools.chain(*[remove_foreign(splitsent) for splitsent in split_sents]))
+    return split_sents
+
+
+def file_clean(file):
+    """Apply all cleaning to all sentences in a file, and renumber all sentences appropriately"""
+    outfile = list(itertools.chain(*[clean_all(sent) for sent in file]))
+    for sent_num, sent in enumerate(outfile):
+        renumber_sent(sent, sent_num + 1)
+    return outfile
+
+
 if __name__ == "__main__":
 
-    # Open the Wb. Glosses JSON file as wb_data
+    # # Open the Wb. Glosses JSON file as wb_data
     wb_data = conllu_parse(get_data("Wb. Manual Tokenisation.json"))
 
     # # Open the Sg. Glosses CoNLL_U file as sg_data
     # sg_data = get_data("sga_dipsgg-ud-test_combined_POS.conllu")
     sg_data = get_data("sga_dipsgg-ud-test_split_POS.conllu")
 
-    # TEST FUNCTIONS
+    # # TEST FUNCTIONS
 
-    # Test renumber_sent function
+    # # Test renumber_sent function
 
     # print(get_metadata(wb_data[0]))
     # renumber_sent(wb_data[0], 123)
     # print(get_metadata(wb_data[0]))
 
-    # Test clean_punct, clean_unknown and remove_foreign functions
+    # # Test clean_punct, clean_unknown and remove_foreign functions
 
     # print(clean_punct(wb_data[26]))
     # print(clean_unknown(wb_data[26]))
     # print(remove_foreign(wb_data[0]))
+
+    # # Test clean_all and file_clean functions
+
+    # print(clean_all(wb_data[18]))
+    # print(file_clean(wb_data))
