@@ -2,6 +2,7 @@
 from LoadDocs import get_data, conllu_parse, get_metadata, get_pos
 from conllu import parse, TokenList
 import itertools
+import re
 
 
 # List lemmata and features of tokens which cannot be a sentence on their own, and which cannot end a sentence
@@ -403,6 +404,35 @@ def file_clean(file):
     return outfile
 
 
+def separate_hands(file):
+    """Separates a file into separate documents based on scribal hand (requires this metadata to be available)"""
+    all_hands = sorted(list(set(sent.metadata.get("scribe") for sent in file)))
+    separated_files = list()
+    for hand in all_hands:
+        separated_files.append([sent for sent in file if sent.metadata.get("scribe") == hand])
+    return separated_files
+
+
+def separate_columns(file):
+    """Separates a file into individual documents based on folio-column (requires this metadata to be available)"""
+    all_columns = [sent.metadata.get("reference") for sent in file]
+    for i, folcol in enumerate(all_columns):
+        folcolpat = re.compile(r'\d\d?[a-d]')
+        folcolpatiter = folcolpat.finditer(folcol)
+        for j in folcolpatiter:
+            new_folcol = j.group()
+        all_columns[i] = re.sub(r'\d\d?[a-d].*', new_folcol, all_columns[i])
+    all_columns = [[int(folcol[:-1]), folcol[-1:]] for folcol in set(all_columns)]
+    all_columns.sort(key=lambda x: x[1])
+    all_columns.sort(key=lambda x: x[0])
+    all_columns = [f'{folcol[0]}{folcol[1]}' for folcol in all_columns]
+    separated_columns = list()
+    for folcol in all_columns:
+        separated_columns.append([sent for sent in file if sent.metadata.get("reference")[:len(folcol)] == folcol])
+    print(len(separated_columns))
+    return separated_columns
+
+
 if __name__ == "__main__":
 
     # # Open the Wb. Glosses JSON file as wb_data
@@ -430,3 +460,8 @@ if __name__ == "__main__":
 
     # print(clean_all(wb_data[18]))
     # print(file_clean(wb_data))
+
+    # # Test separate_hands and separate_columns functions
+
+    # print(separate_hands(wb_data))
+    print(separate_columns(sg_data))
