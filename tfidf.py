@@ -12,7 +12,7 @@ def tfidf(documents):
     feature_names = vectorizer.get_feature_names()
     dense = vectors.todense()
     denselist = dense.tolist()
-    df = pd.DataFrame(denselist, columns=feature_names, index=["doc1", "doc2", "doc3"])
+    df = pd.DataFrame(denselist, columns=feature_names, index=["doc1", "doc2", "doc3", "doc4", "doc5"])
     return df
 
 
@@ -27,8 +27,10 @@ if __name__ == "__main__":
     doc1 = "These are some words I'm putting in a document."
     doc2 = "This document is comprised of a number of words."
     doc3 = "Some of the words in this document are found in other documents also."
+    doc4 = "We are now writing a piece of text which is entirely separate from the others and, hence, dissimilar."
+    doc5 = "Another piece of writing in which we are interested for its dissimilarity to its precursors is this."
 
-    docs = [doc1, doc2, doc3]
+    docs = [doc1, doc2, doc3, doc4, doc5]
 
     # # TEST FUNCTIONS
 
@@ -44,4 +46,3 @@ if __name__ == "__main__":
     # print(km.cluster_centers_)
     # print(km.medoid_indices_)
     # print(km.inertia_)
-
