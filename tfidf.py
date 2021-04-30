@@ -1,25 +1,58 @@
 
-import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn_extra.cluster import KMedoids
-import numpy as np
+from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 
 
 def tfidf(documents):
-    vectorizer = TfidfVectorizer()
+    """Tokenise inputted documents and return raw tf*idf vectors of inputted documents"""
+    vectorizer = TfidfVectorizer(analyzer='word')
     vectors = vectorizer.fit_transform(documents)
-    feature_names = vectorizer.get_feature_names()
-    dense = vectors.todense()
-    denselist = dense.tolist()
-    df = pd.DataFrame(denselist, columns=feature_names, index=["doc1", "doc2", "doc3", "doc4", "doc5"])
-    return df
+    return vectors
 
 
-def k_medoids(tfidf_doc):
-    tfidf_array = np.asarray(tfidf_doc)
-    kmedoids = KMedoids(n_clusters=3, metric='cosine', random_state=0).fit(tfidf_array)
+def k_medoids(documents, classifier):
+    """Returns raw k_medoid vectors for raw tf*idf vectors from inputted documents"""
+    tfidf_doc = tfidf(documents)
+    kmedoids = classifier.fit_predict(tfidf_doc)
     return kmedoids
+
+
+def pca_2d(documents, pca_classifier):
+    """Performs Principal Component Analysis on documents inputted, returns an n-dimensional array of PCA dense vectors
+       (usually a 2D array, number of dimensions depends on pca_classifier)"""
+    tfidf_doc = tfidf(documents)
+    PCA_2D = pca_classifier.fit_transform(tfidf_doc.todense())
+    return PCA_2D
+
+
+def pca_centres(classifier, pca_classifier):
+    """Returns PCA dense vectors for center points of each cluster"""
+    centres = pca_classifier.transform(classifier.cluster_centers_.todense())
+    return centres
+
+
+def draw_subplots(data, colors, plotname, clusters, centres=None, cmap='viridis', header='Old Irish Gloss Clusters'):
+
+    plot = plotname
+
+    plot.axhline(0, color='#afafaf')
+    plot.axvline(0, color='#afafaf')
+
+    for i in range(clusters):
+        try:
+            plot.scatter(data[i:, 0], data[i:, 1], s=30, c=colors, cmap=cmap)
+        except (KeyError, ValueError) as e:
+            pass
+
+    if centres:
+        plot.scatter(centres[:, 0], centres[:, 1], marker="x", c='r')
+
+    plot.set_xlabel('Principal Component 1')
+    plot.set_ylabel('Principal Component 2')
+
+    plot.set_title(header)
 
 
 if __name__ == "__main__":
@@ -30,19 +63,65 @@ if __name__ == "__main__":
     doc4 = "We are now writing a piece of text which is entirely separate from the others and, hence, dissimilar."
     doc5 = "Another piece of writing in which we are interested for its dissimilarity to its precursors is this."
 
+    hand_labels = [0, 1, 1, 2, 2]
+    hand_names = ["hand 3", "hand 1", "hand 1", "hand 2", "hand 2"]
+
     docs = [doc1, doc2, doc3, doc4, doc5]
+
+    clusters = 3
+
+    classifier = KMedoids(n_clusters=clusters, metric="cosine", random_state=0)
+    km = k_medoids(docs, classifier)
+    pca_classifier = PCA(n_components=2)
+    pca_2d_matrix = pca_2d(docs, pca_classifier)
+    centres_matrix = pca_centres(classifier, pca_classifier)
+
+    fig, (plot1, plot2) = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(20, 10))
+    draw_subplots(pca_2d_matrix, classifier.labels_, plot1, clusters, header='colours = clusters')
+    draw_subplots(pca_2d_matrix, hand_labels, plot2, clusters, header='colours = topics')
+    plt.show()
 
     # # TEST FUNCTIONS
 
+    # # Provide Test Data
+    #
+    # doc1 = "These are some words I'm putting in a document."
+    # doc2 = "This document is comprised of a number of words."
+    # doc3 = "Some of the words in this document are found in other documents also."
+    # doc4 = "We are now writing a piece of text which is entirely separate from the others and, hence, dissimilar."
+    # doc5 = "Another piece of writing in which we are interested for its dissimilarity to its precursors is this."
+    # docs = [doc1, doc2, doc3, doc4, doc5]
+    #
+    # hand_labels = [0, 1, 1, 2, 2]
+    # hand_names = ["hand 3", "hand 1", "hand 1", "hand 2", "hand 2"]
+
+
     # # Test tfidf function
-
+    #
+    # tfidf_doc = tfidf(docs)
+    #
     # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print(tfidf(docs))
+    #     print(tfidf_doc)
 
-    # # Test k_medoids function
+    # # # Test k_medoids function
+    #
+    # classifier = KMedoids(n_clusters=clusters, metric="cosine", random_state=0)
+    # km = k_medoids(docs, classifier)
+    #
+    # print(classifier.labels_)
+    # print(classifier.cluster_centers_)
+    # print(classifier.medoid_indices_)
+    # print(classifier.inertia_)
 
-    km = k_medoids(tfidf(docs))
-    # print(km.labels_)
-    # print(km.cluster_centers_)
-    # print(km.medoid_indices_)
-    # print(km.inertia_)
+    # # # Test pca, pca_2d and pca_centres functions
+    #
+    # pca_classifier = pca(2)
+    # pca_2d_matrix = pca_2d(docs, pca_classifier)
+    # centres_matrix = pca_centres(classifier, pca_classifier)
+
+    # Test draw_subplots function
+
+    # fig, (plot1, plot2) = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(20, 10))
+    # draw_subplots(pca_2d_matrix, classifier.labels_, plot1, clusters, header='colours = clusters')
+    # draw_subplots(pca_2d_matrix, hand_labels, plot2, clusters, header='colours = topics')
+    # plt.show()
