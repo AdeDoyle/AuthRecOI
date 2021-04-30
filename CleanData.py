@@ -1,5 +1,5 @@
 
-from LoadDocs import get_data, conllu_parse, get_metadata, get_pos
+from LoadDocs import get_data, conllu_parse, get_metadata, get_tokens, get_pos
 from conllu import parse, TokenList
 import itertools
 import re
@@ -389,7 +389,7 @@ def remove_foreign(sentence):
 
 
 def clean_all(sentence):
-    """Apply all cleaning to a single sentence, i.e. split it on punctuation, unknown POS and foreign words"""
+    """Apply all cleaning to a single sentence, i.e. split it on punctuation, unknown POS, and foreign words"""
     split_sents = clean_punct(sentence)
     split_sents = list(itertools.chain(*[clean_unknown(splitsent) for splitsent in split_sents]))
     split_sents = list(itertools.chain(*[remove_foreign(splitsent) for splitsent in split_sents]))
@@ -429,8 +429,42 @@ def separate_columns(file):
     separated_columns = list()
     for folcol in all_columns:
         separated_columns.append([sent for sent in file if sent.metadata.get("reference")[:len(folcol)] == folcol])
-    print(len(separated_columns))
     return separated_columns
+
+
+def compile_hand_data(file):
+    """Compiles a list of glosses for each hand, then creates a list of lables for each"""
+    cleaned_data = file_clean(file)
+    hand_data = separate_hands(cleaned_data)
+    hand_labels = list()
+    compiled_data = list()
+    for handlist in hand_data:
+        for sent in handlist:
+            hand_labels.append(sent.metadata.get("scribe"))
+            compiled_data.append(sent)
+    compiled_data = [" ".join(get_tokens(sent)) for sent in compiled_data]
+    return [compiled_data, hand_labels]
+
+
+def compile_doc_data(file):
+    """Compiles a list of glosses for each hand and folio-column, then creates a list of lables for each"""
+    cleaned_data = file_clean(file)
+    hand_data = separate_hands(cleaned_data)
+    hand_labels = list()
+    compiled_data = list()
+    for handlist in hand_data:
+        for sent in handlist:
+            hand_labels.append(sent.metadata.get("scribe"))
+            compiled_data.append(sent)
+    all_columns = [sent.metadata.get("reference") for sent in compiled_data]
+    for i, folcol in enumerate(all_columns):
+        folcolpat = re.compile(r'^\d\d?[a-d]')
+        folcolpatiter = folcolpat.finditer(folcol)
+        for j in folcolpatiter:
+            new_folcol = j.group()
+            hand_labels[i] = f'{new_folcol} {hand_labels[i]}'
+    compiled_data = [" ".join(get_tokens(sent)) for sent in compiled_data]
+    return [compiled_data, hand_labels]
 
 
 if __name__ == "__main__":
@@ -465,3 +499,5 @@ if __name__ == "__main__":
 
     # print(separate_hands(wb_data))
     print(separate_columns(sg_data))
+
+    # print(compile_doc_data(wb_data))

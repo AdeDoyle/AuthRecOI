@@ -3,6 +3,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn_extra.cluster import KMedoids
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+from LoadDocs import get_data, conllu_parse
+from CleanData import compile_hand_data, compile_doc_data
 
 
 def tfidf(documents):
@@ -33,7 +35,7 @@ def pca_centres(classifier, pca_classifier):
     return centres
 
 
-def draw_subplots(data, colors, plotname, clusters, centres=None, cmap='viridis', header='Old Irish Gloss Clusters'):
+def draw_subplots(data, colors, plotname, clusters, centres='empty', cmap='viridis', header='Old Irish Gloss Clusters'):
 
     plot = plotname
 
@@ -46,7 +48,7 @@ def draw_subplots(data, colors, plotname, clusters, centres=None, cmap='viridis'
         except (KeyError, ValueError) as e:
             pass
 
-    if centres:
+    if centres != 'empty':
         plot.scatter(centres[:, 0], centres[:, 1], marker="x", c='r')
 
     plot.set_xlabel('Principal Component 1')
@@ -57,16 +59,16 @@ def draw_subplots(data, colors, plotname, clusters, centres=None, cmap='viridis'
 
 if __name__ == "__main__":
 
-    doc1 = "These are some words I'm putting in a document."
-    doc2 = "This document is comprised of a number of words."
-    doc3 = "Some of the words in this document are found in other documents also."
-    doc4 = "We are now writing a piece of text which is entirely separate from the others and, hence, dissimilar."
-    doc5 = "Another piece of writing in which we are interested for its dissimilarity to its precursors is this."
-
-    hand_labels = [0, 1, 1, 2, 2]
-    hand_names = ["hand 3", "hand 1", "hand 1", "hand 2", "hand 2"]
-
-    docs = [doc1, doc2, doc3, doc4, doc5]
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")))
+    wb_data = compile_hand_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")))
+    docs = wb_data[0]
+    hand_names = wb_data[1]
+    hl_dict = {}
+    handcount = 0
+    for hand_name in sorted(list(set(hand_names))):
+        hl_dict[hand_name] = handcount
+        handcount += 1
+    hand_labels = [hl_dict.get(i) for i in hand_names]
 
     clusters = 3
 
@@ -77,7 +79,7 @@ if __name__ == "__main__":
     centres_matrix = pca_centres(classifier, pca_classifier)
 
     fig, (plot1, plot2) = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(20, 10))
-    draw_subplots(pca_2d_matrix, classifier.labels_, plot1, clusters, header='colours = clusters')
+    draw_subplots(pca_2d_matrix, classifier.labels_, plot1, clusters, centres_matrix, header='colours = clusters')
     draw_subplots(pca_2d_matrix, hand_labels, plot2, clusters, header='colours = topics')
     plt.show()
 
