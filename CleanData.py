@@ -443,6 +443,7 @@ def compile_hand_data(file):
             hand_labels.append(sent.metadata.get("scribe"))
             compiled_data.append(sent)
     compiled_data = [" ".join(get_tokens(sent)) for sent in compiled_data]
+    # compiled_data = [get_tokens(sent) for sent in compiled_data]
     return [compiled_data, hand_labels]
 
 
@@ -464,6 +465,7 @@ def compile_doc_data(file):
             new_folcol = j.group()
             hand_labels[i] = f'{new_folcol} {hand_labels[i]}'
     compiled_data = [" ".join(get_tokens(sent)) for sent in compiled_data]
+    # compiled_data = [get_tokens(sent) for sent in compiled_data]
     return [compiled_data, hand_labels]
 
 

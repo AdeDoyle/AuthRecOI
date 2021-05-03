@@ -1,5 +1,6 @@
 
 from sklearn.feature_extraction.text import TfidfVectorizer
+import math
 from sklearn_extra.cluster import KMedoids
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
@@ -7,10 +8,38 @@ from LoadDocs import get_data, conllu_parse
 from CleanData import compile_hand_data, compile_doc_data
 
 
-def tfidf(documents):
+# the logarithm of the number of documents in the corpus divided by
+
+
+def tfidf(documents, reduced_documents=None):
     """Tokenise inputted documents and return raw tf*idf vectors of inputted documents"""
     vectorizer = TfidfVectorizer(analyzer='word')
     vectors = vectorizer.fit_transform(documents)
+
+    # vectors = []
+    #
+    # if not reduced_documents:
+    #     reduced_documents = documents
+    #
+    # N = len(documents)
+    #
+    # for docnum, d in enumerate(documents):
+    #     rd = reduced_documents[docnum]
+    #     maxrf = max([d.count(i) for i in d])
+    #     for t in rd:
+    #         tfd = rd.count(t)
+    #         tf = tfd/maxrf
+    #         df = 1  # Start count at 1 for smoothing
+    #         for doc in reduced_documents:
+    #             if t in doc:
+    #                 df += 1
+    #         idf = math.log(N/df)
+    #         vectors.append(tf*idf)
+
+    # for i in vectors:
+    #     print(i)
+    print(vectors)
+
     return vectors
 
 
@@ -94,16 +123,22 @@ if __name__ == "__main__":
     # doc5 = "Another piece of writing in which we are interested for its dissimilarity to its precursors is this."
     # docs = [doc1, doc2, doc3, doc4, doc5]
     #
+    # reduced_doc1 = "These I'm in a"
+    # reduced_doc2 = "This of a of"
+    # reduced_doc3 = "Some of the in this in"
+    # reduced_doc4 = "We a of which from the and"
+    # reduced_doc5 = "Another of in which we for its to its this"
+    # reduced_docs = [reduced_doc1, reduced_doc2, reduced_doc3, reduced_doc4, reduced_doc5]
+    #
     # hand_labels = [0, 1, 1, 2, 2]
     # hand_names = ["hand 3", "hand 1", "hand 1", "hand 2", "hand 2"]
 
 
     # # Test tfidf function
     #
-    # tfidf_doc = tfidf(docs)
+    # tfidf_doc = tfidf(docs, reduced_docs)
     #
-    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print(tfidf_doc)
+    # print(tfidf_doc)
 
     # # # Test k_medoids function
     #
