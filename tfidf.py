@@ -3,6 +3,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn_extra.cluster import KMedoids
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+import numpy
 from LoadDocs import get_data, conllu_parse
 from CleanData import compile_hand_data, compile_doc_data
 
@@ -39,7 +40,7 @@ def pca_centres(classifier, pca_classifier):
     return centres
 
 
-def draw_subplots(data, colors, plotname, clusters, centres='empty', cmap='viridis', header='Old Irish Gloss Clusters'):
+def draw_subplots(data, colors, plotname, clusters, centres=None, cmap='viridis', header='Old Irish Gloss Clusters'):
 
     plot = plotname
 
@@ -52,7 +53,7 @@ def draw_subplots(data, colors, plotname, clusters, centres='empty', cmap='virid
         except (KeyError, ValueError) as e:
             pass
 
-    if centres != 'empty':
+    if isinstance(centres, numpy.ndarray):
         plot.scatter(centres[:, 0], centres[:, 1], marker="x", c='r')
 
     plot.set_xlabel('Principal Component 1')
@@ -83,8 +84,8 @@ if __name__ == "__main__":
     centres_matrix = pca_centres(classifier, pca_classifier)
 
     fig, (plot1, plot2) = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(20, 10))
-    draw_subplots(pca_2d_matrix, classifier.labels_, plot1, clusters, centres_matrix, header='colours = clusters')
-    draw_subplots(pca_2d_matrix, hand_labels, plot2, clusters, header='colours = topics')
+    draw_subplots(pca_2d_matrix, classifier.labels_, plot1, clusters, centres_matrix, header='Colours = Clusters')
+    draw_subplots(pca_2d_matrix, hand_labels, plot2, clusters, header='Colours = Topics (Hands)')
     plt.show()
 
     # # TEST FUNCTIONS
