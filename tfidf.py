@@ -1,6 +1,5 @@
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-import math
 from sklearn_extra.cluster import KMedoids
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
@@ -8,38 +7,14 @@ from LoadDocs import get_data, conllu_parse
 from CleanData import compile_hand_data, compile_doc_data
 
 
-# the logarithm of the number of documents in the corpus divided by
-
-
 def tfidf(documents, reduced_documents=None):
     """Tokenise inputted documents and return raw tf*idf vectors of inputted documents"""
-    vectorizer = TfidfVectorizer(analyzer='word')
+    if reduced_documents:
+        vocab = sorted(list(set([x for y in [i.split(" ") for i in reduced_documents] for x in y])))
+    else:
+        vocab = None
+    vectorizer = TfidfVectorizer(analyzer='word', token_pattern=r"(?u)\b\w+\b", vocabulary=vocab)
     vectors = vectorizer.fit_transform(documents)
-
-    # vectors = []
-    #
-    # if not reduced_documents:
-    #     reduced_documents = documents
-    #
-    # N = len(documents)
-    #
-    # for docnum, d in enumerate(documents):
-    #     rd = reduced_documents[docnum]
-    #     maxrf = max([d.count(i) for i in d])
-    #     for t in rd:
-    #         tfd = rd.count(t)
-    #         tf = tfd/maxrf
-    #         df = 1  # Start count at 1 for smoothing
-    #         for doc in reduced_documents:
-    #             if t in doc:
-    #                 df += 1
-    #         idf = math.log(N/df)
-    #         vectors.append(tf*idf)
-
-    # for i in vectors:
-    #     print(i)
-    print(vectors)
-
     return vectors
 
 
@@ -116,14 +91,14 @@ if __name__ == "__main__":
 
     # # Provide Test Data
     #
-    # doc1 = "These are some words I'm putting in a document."
+    # doc1 = "These are some words I am putting in a document."
     # doc2 = "This document is comprised of a number of words."
     # doc3 = "Some of the words in this document are found in other documents also."
     # doc4 = "We are now writing a piece of text which is entirely separate from the others and, hence, dissimilar."
     # doc5 = "Another piece of writing in which we are interested for its dissimilarity to its precursors is this."
     # docs = [doc1, doc2, doc3, doc4, doc5]
     #
-    # reduced_doc1 = "These I'm in a"
+    # reduced_doc1 = "These I in a"
     # reduced_doc2 = "This of a of"
     # reduced_doc3 = "Some of the in this in"
     # reduced_doc4 = "We a of which from the and"
