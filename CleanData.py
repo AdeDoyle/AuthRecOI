@@ -482,7 +482,6 @@ def compile_hand_data(file):
             hand_labels.append(sent.metadata.get("scribe"))
             compiled_data.append(sent)
     compiled_data = [" ".join(get_tokens(sent)) for sent in compiled_data]
-    # compiled_data = [get_tokens(sent) for sent in compiled_data]
     return [compiled_data, hand_labels]
 
 
@@ -493,18 +492,32 @@ def compile_doc_data(file):
     hand_labels = list()
     compiled_data = list()
     for handlist in hand_data:
-        for sent in handlist:
-            hand_labels.append(sent.metadata.get("scribe"))
-            compiled_data.append(sent)
-    all_columns = [sent.metadata.get("reference") for sent in compiled_data]
-    for i, folcol in enumerate(all_columns):
-        folcolpat = re.compile(r'^\d\d?[a-d]')
-        folcolpatiter = folcolpat.finditer(folcol)
-        for j in folcolpatiter:
-            new_folcol = j.group()
-            hand_labels[i] = f'{new_folcol} {hand_labels[i]}'
-    compiled_data = [" ".join(get_tokens(sent)) for sent in compiled_data]
-    # compiled_data = [get_tokens(sent) for sent in compiled_data]
+        hand = handlist[0].metadata.get("scribe")
+        if hand in ["Hand One (Prima Manus)", "Hand One (Prima Manus) and Hand Two"]:
+            compiled_data.append(handlist)
+            hand_labels.append(hand)
+        else:
+            hand_folcol_list = list()
+            cur_folcol = None
+            for i, sent in enumerate(handlist):
+                this_folcol = sent.metadata.get("reference")
+                folcolpat = re.compile(r'^\d{1,3}[a-d]')
+                folcolpatiter = folcolpat.finditer(this_folcol)
+                for j in folcolpatiter:
+                    this_folcol = j.group()
+                if i+1 == len(handlist):
+                    hand_labels.append(hand)
+                    compiled_data.append(hand_folcol_list)
+                elif not cur_folcol or this_folcol != cur_folcol:
+                    hand_labels.append(hand)
+                    cur_folcol = this_folcol
+                    compiled_data.append(hand_folcol_list)
+                    hand_folcol_list = [sent]
+                elif this_folcol == cur_folcol:
+                    hand_folcol_list.append(sent)
+    for i, hand_fol in enumerate(compiled_data):
+        compiled_data[i] = [" ".join(get_tokens(sent)) for sent in hand_fol]
+    compiled_data = ["\n".join(gloss_text) for gloss_text in compiled_data]
     return [compiled_data, hand_labels]
 
 
