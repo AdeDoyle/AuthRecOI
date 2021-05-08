@@ -417,18 +417,57 @@ def separate_columns(file):
     """Separates a file into individual documents based on folio-column (requires this metadata to be available)"""
     all_columns = [sent.metadata.get("reference") for sent in file]
     for i, folcol in enumerate(all_columns):
-        folcolpat = re.compile(r'\d\d?[a-d]')
-        folcolpatiter = folcolpat.finditer(folcol)
-        for j in folcolpatiter:
-            new_folcol = j.group()
-        all_columns[i] = re.sub(r'\d\d?[a-d].*', new_folcol, all_columns[i])
-    all_columns = [[int(folcol[:-1]), folcol[-1:]] for folcol in set(all_columns)]
-    all_columns.sort(key=lambda x: x[1])
-    all_columns.sort(key=lambda x: x[0])
-    all_columns = [f'{folcol[0]}{folcol[1]}' for folcol in all_columns]
+        if folcol == "Not in Thesaurus Palaeohibernicus":
+            all_columns[i] = "No folio information available"
+        else:
+            new_folcol = None
+            folcolpat = re.compile(r'^(\d{1,3}([a-d]|,\d)|f\.\d{1,3}[a-d]?)')
+            folcolpatiter = folcolpat.finditer(folcol)
+            for j in folcolpatiter:
+                new_folcol = j.group()
+            if new_folcol:
+                if "," in new_folcol:
+                    new_folcol = new_folcol[:-2]
+                elif "f." in new_folcol:
+                    new_folcol = new_folcol[2:]
+                if new_folcol[-1] not in ["a", "b", "c", "d"]:
+                    new_folcol = new_folcol + "x"
+                all_columns[i] = re.sub(r'^(\d{1,3}([a-d]|,\d)|f\.\d{1,3}[a-d]?).*', new_folcol, all_columns[i])
+            else:
+                raise RuntimeError(f"No folio pattern found for folio/column:\n    {folcol}")
+    try:
+        all_columns = [[int(folcol[:-1]), folcol[-1:]] for folcol in set(all_columns)]
+        all_columns.sort(key=lambda x: x[1])
+        all_columns.sort(key=lambda x: x[0])
+        all_columns = [f'{folcol[0]}{folcol[1]}' for folcol in all_columns]
+    except ValueError:
+        new_columns = list()
+        for folcol in set(all_columns):
+            if folcol == "No folio information available":
+                folcol = [0, "No folio information available"]
+            else:
+                folcol = [int(folcol[:-1]), folcol[-1:]]
+            new_columns.append(folcol)
+        all_columns = new_columns
+        all_columns.sort(key=lambda x: x[1])
+        all_columns.sort(key=lambda x: x[0])
+        all_columns = [f'{folcol[0]}{folcol[1]}' if (folcol[1] != "x" and folcol[0] != 0)
+                       else folcol for folcol in all_columns]
+        all_columns = [folcol[1] if folcol[0] == 0 else folcol for folcol in all_columns]
+        all_columns = [f'{folcol[0]}' if isinstance(folcol, list) and folcol[-1] == "x"
+                       else folcol for folcol in all_columns]
     separated_columns = list()
     for folcol in all_columns:
-        separated_columns.append([sent for sent in file if sent.metadata.get("reference")[:len(folcol)] == folcol])
+        returned_sents = [sent for sent in file if sent.metadata.get("reference")[:len(folcol)] == folcol]
+        if not returned_sents:
+            if folcol == "No folio information available":
+                returned_sents = [sent for sent in file
+                                  if sent.metadata.get("reference") == "Not in Thesaurus Palaeohibernicus"]
+            else:
+                returned_sents = [sent for sent in file if sent.metadata.get("reference")[2:len(folcol) + 2] == folcol]
+                if not returned_sents:
+                    raise RuntimeError(f"Unknown folio-column: {folcol}")
+        separated_columns.append(returned_sents)
     return separated_columns
 
 
@@ -500,6 +539,8 @@ if __name__ == "__main__":
     # # Test separate_hands and separate_columns functions
 
     # print(separate_hands(wb_data))
-    print(separate_columns(sg_data))
+    # print(separate_columns(wb_data))
+    # print(separate_hands(sg_data))
+    # print(separate_columns(sg_data))
 
     # print(compile_doc_data(wb_data))
