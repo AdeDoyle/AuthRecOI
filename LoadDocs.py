@@ -5,6 +5,10 @@ from conllu import parse, TokenList
 from collections import OrderedDict
 
 
+# List parts-of-speech which constitute function words
+function_words = ["ADP", "CCONJ", "DET", "PRON", "SCONJ"]
+
+
 def get_data(file_name):
     """return data from the file requested"""
 
@@ -124,6 +128,16 @@ def get_tokens(sentence):
     return tokens
 
 
+def get_funcwrds(sentence):
+    """return just the tokens from a parsed .conllu sentence whicha re function words"""
+    func_sent = [i for i in sentence if i.get("upos") in function_words + ["X"]]
+    func_sent = [i for i in func_sent if i.get("upos") != "X" or i.get("upos") == "X" and i.get("lemma") == "et"]
+    func_sent = [i for i in func_sent if i.get("upos") != "ADP"
+                 or i.get("upos") == "ADP" and "PronType" in i.get("feats")]
+    func_wrds = [tok.get("form") for tok in func_sent]
+    return func_wrds
+
+
 def get_lemmas(sentence):
     """return just the lemmata from a parsed .conllu sentence"""
     lemmas = [tok.get("lemma") for tok in sentence]
@@ -173,10 +187,12 @@ if __name__ == "__main__":
     # print(sg_data[0])
     # print(oi_lex[0])
 
-    # Test get_tokens, get_lemmas, get_pos and get_feats functions
+    # Test get_tokens, get_funcwrds, get_lemmas, get_pos and get_feats functions
 
     # print(get_tokens(sg_data[0]))
     # print(get_tokens(wb_data[0]))
+    # print(get_funcwrds(sg_data[0]))
+    # print(get_funcwrds(wb_data[0]))
     # print(get_lemmas(sg_data[0]))
     # print(get_lemmas(wb_data[0]))
     # print(get_pos(sg_data[0]))

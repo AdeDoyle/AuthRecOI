@@ -64,8 +64,8 @@ def draw_subplots(data, colors, plotname, clusters, centres=None, cmap='viridis'
 
 if __name__ == "__main__":
 
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")))
-    wb_data = compile_hand_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")))
+    wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")))
+    # wb_data = compile_hand_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")))
     docs = wb_data[0]
     hand_names = wb_data[1]
     hl_dict = {}
@@ -75,7 +75,7 @@ if __name__ == "__main__":
         handcount += 1
     hand_labels = [hl_dict.get(i) for i in hand_names]
 
-    clusters = 3
+    clusters = 4
 
     classifier = KMedoids(n_clusters=clusters, metric="cosine", random_state=0)
     km = k_medoids(docs, classifier)

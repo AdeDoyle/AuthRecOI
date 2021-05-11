@@ -1,5 +1,5 @@
 
-from LoadDocs import get_data, conllu_parse, get_metadata, get_tokens, get_pos
+from LoadDocs import get_data, conllu_parse, get_metadata, get_tokens, get_funcwrds, get_pos
 from conllu import parse, TokenList
 import itertools
 import re
@@ -471,26 +471,43 @@ def separate_columns(file):
     return separated_columns
 
 
-def compile_hand_data(file):
+def compile_hand_data(file, function_words=False):
     """Compiles a list of glosses for each hand, then creates a list of lables for each"""
     cleaned_data = file_clean(file)
     hand_data = separate_hands(cleaned_data)
     hand_labels = list()
     compiled_data = list()
+    compiled_fw_data = list()
     for handlist in hand_data:
-        for sent in handlist:
-            hand_labels.append(sent.metadata.get("scribe"))
-            compiled_data.append(sent)
-    compiled_data = [" ".join(get_tokens(sent)) for sent in compiled_data]
-    return [compiled_data, hand_labels]
+        hand_labels.append(handlist[0].metadata.get("scribe"))
+        compiled_data.append(handlist)
+    if function_words:
+        compiled_fw_data = compiled_data[:]
+        for i, hand_fol in enumerate(compiled_fw_data):
+            compiled_fw_data[i] = [" ".join(get_funcwrds(sent)) for sent in hand_fol]
+        compiled_fw_data = ["\n".join(gloss_text) for gloss_text in compiled_fw_data]
+        for i, fw_datum in enumerate(compiled_fw_data):
+            if "\n" in fw_datum:
+                fw_datum = fw_datum.strip()
+                while "\n\n" in fw_datum:
+                    fw_datum = "\n".join(fw_datum.split("\n\n"))
+                compiled_fw_data[i] = fw_datum
+    for i, hand_fol in enumerate(compiled_data):
+        compiled_data[i] = [" ".join(get_tokens(sent)) for sent in hand_fol]
+    compiled_data = ["\n".join(gloss_text) for gloss_text in compiled_data]
+    if function_words:
+        return [compiled_data, compiled_fw_data, hand_labels]
+    else:
+        return [compiled_data, hand_labels]
 
 
-def compile_doc_data(file):
+def compile_doc_data(file, function_words=False):
     """Compiles a list of glosses for each hand and folio-column, then creates a list of lables for each"""
     cleaned_data = file_clean(file)
     hand_data = separate_hands(cleaned_data)
     hand_labels = list()
     compiled_data = list()
+    compiled_fw_data = list()
     for handlist in hand_data:
         hand = handlist[0].metadata.get("scribe")
         if hand in ["Hand One (Prima Manus)", "Hand One (Prima Manus) and Hand Two"]:
@@ -515,10 +532,24 @@ def compile_doc_data(file):
                     hand_folcol_list = [sent]
                 elif this_folcol == cur_folcol:
                     hand_folcol_list.append(sent)
+    if function_words:
+        compiled_fw_data = compiled_data[:]
+        for i, hand_fol in enumerate(compiled_fw_data):
+            compiled_fw_data[i] = [" ".join(get_funcwrds(sent)) for sent in hand_fol]
+        compiled_fw_data = ["\n".join(gloss_text) for gloss_text in compiled_fw_data]
+        for i, fw_datum in enumerate(compiled_fw_data):
+            if "\n" in fw_datum:
+                fw_datum = fw_datum.strip()
+                while "\n\n" in fw_datum:
+                    fw_datum = "\n".join(fw_datum.split("\n\n"))
+                compiled_fw_data[i] = fw_datum
     for i, hand_fol in enumerate(compiled_data):
         compiled_data[i] = [" ".join(get_tokens(sent)) for sent in hand_fol]
     compiled_data = ["\n".join(gloss_text) for gloss_text in compiled_data]
-    return [compiled_data, hand_labels]
+    if function_words:
+        return [compiled_data, compiled_fw_data, hand_labels]
+    else:
+        return [compiled_data, hand_labels]
 
 
 if __name__ == "__main__":
@@ -556,4 +587,9 @@ if __name__ == "__main__":
     # print(separate_hands(sg_data))
     # print(separate_columns(sg_data))
 
+    # # Test compile_doc_data and compile_hand_data functions
+
+    # print(compile_hand_data(wb_data))
+    # print(compile_hand_data(wb_data, True))
     # print(compile_doc_data(wb_data))
+    # print(compile_doc_data(wb_data, True))
