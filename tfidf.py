@@ -5,7 +5,7 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import numpy
 from LoadDocs import get_data, conllu_parse
-from CleanData import compile_hand_data, compile_doc_data
+from CleanData import compile_doc_data
 
 
 def tfidf(documents, reduced_documents=None):
@@ -19,17 +19,17 @@ def tfidf(documents, reduced_documents=None):
     return vectors
 
 
-def k_medoids(documents, classifier):
+def k_medoids(documents, classifier, reduced_documents=None):
     """Returns raw k_medoid vectors for raw tf*idf vectors from inputted documents"""
-    tfidf_doc = tfidf(documents)
+    tfidf_doc = tfidf(documents, reduced_documents)
     kmedoids = classifier.fit_predict(tfidf_doc)
     return kmedoids
 
 
-def pca_2d(documents, pca_classifier):
+def pca_2d(documents, pca_classifier, reduced_documents=None):
     """Performs Principal Component Analysis on documents inputted, returns an n-dimensional array of PCA dense vectors
        (usually a 2D array, number of dimensions depends on pca_classifier)"""
-    tfidf_doc = tfidf(documents)
+    tfidf_doc = tfidf(documents, reduced_documents)
     PCA_2D = pca_classifier.fit_transform(tfidf_doc.todense())
     return PCA_2D
 
@@ -64,10 +64,13 @@ def draw_subplots(data, colors, plotname, clusters, centres=None, cmap='viridis'
 
 if __name__ == "__main__":
 
-    wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")))
-    # wb_data = compile_hand_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")))
+    wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")), True)
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")))
     docs = wb_data[0]
-    hand_names = wb_data[1]
+    hand_names = wb_data[-1]
+    reduced_docs = None
+    if len(wb_data) == 3:
+        reduced_docs = wb_data[1]
     hl_dict = {}
     handcount = 0
     for hand_name in sorted(list(set(hand_names))):
@@ -78,9 +81,9 @@ if __name__ == "__main__":
     clusters = 4
 
     classifier = KMedoids(n_clusters=clusters, metric="cosine", random_state=0)
-    km = k_medoids(docs, classifier)
+    km = k_medoids(docs, classifier, reduced_docs)
     pca_classifier = PCA(n_components=2)
-    pca_2d_matrix = pca_2d(docs, pca_classifier)
+    pca_2d_matrix = pca_2d(docs, pca_classifier, reduced_docs)
     centres_matrix = pca_centres(classifier, pca_classifier)
 
     fig, (plot1, plot2) = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(20, 10))
