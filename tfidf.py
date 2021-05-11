@@ -64,8 +64,8 @@ def draw_subplots(data, colors, plotname, clusters, centres=None, cmap='viridis'
 
 if __name__ == "__main__":
 
-    wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")), True)
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json")))
+    wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True)
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2))
     docs = wb_data[0]
     hand_names = wb_data[-1]
     reduced_docs = None
