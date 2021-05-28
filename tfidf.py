@@ -12,9 +12,10 @@ def tfidf(documents, reduced_documents=None):
     """Tokenise inputted documents and return raw tf*idf vectors of inputted documents"""
     if reduced_documents:
         vocab = sorted(list(set([x for y in [i.split(" ") for i in reduced_documents] for x in y])))
+        vocab = [v.lower() for v in vocab]
     else:
         vocab = None
-    vectorizer = TfidfVectorizer(analyzer='word', token_pattern=r"(?u)\b\w+\b", vocabulary=vocab)
+    vectorizer = TfidfVectorizer(analyzer='word', token_pattern=r"(?u)\b[\wáéíóúↄḟṁṅæǽ⁊ɫ֊̃]+\b", vocabulary=vocab)
     vectors = vectorizer.fit_transform(documents)
     return vectors
 
@@ -64,8 +65,42 @@ def draw_subplots(data, colors, plotname, clusters, centres=None, cmap='viridis'
 
 if __name__ == "__main__":
 
-    wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True)
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2))
+    # # Select Wb. Data
+
+    # # Tokenisation style 1
+
+    # # All Word-types, Natural Tokens, No Features
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1))
+
+    # # Function-words Only, Natural Tokens, No Features
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True)
+
+    # # All Word-types, Tokens Standardised, No Features
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), False, True)
+
+    # # Function-words Only, Tokens Standardised, No Features
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True, True)
+
+    # # Function-words Only, Tokens Standardised, Features Added
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True, True, True)
+
+    # # Tokenisation style 2
+
+    # # All Word-types, Natural Tokens, No Features
+    wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2))
+
+    # # Function-words Only, Natural Tokens, No Features
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True)
+
+    # # All Word-types, Tokens Standardised, No Features
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), False, True)
+
+    # # Function-words Only, Tokens Standardised, No Features
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True, True)
+
+    # # Function-words Only, Tokens Standardised, Features Added
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True, True, True)
+
     docs = wb_data[0]
     hand_names = wb_data[-1]
     reduced_docs = None

@@ -501,7 +501,7 @@ def compile_hand_data(file, function_words=False):
         return [compiled_data, hand_labels]
 
 
-def compile_doc_data(file, function_words=False):
+def compile_doc_data(file, function_words=False, standard_word_forms=False, add_feats=False):
     """Compiles a list of glosses for each hand and folio-column, then creates a list of lables for each"""
     cleaned_data = file_clean(file)
     hand_data = separate_hands(cleaned_data)
@@ -535,17 +535,18 @@ def compile_doc_data(file, function_words=False):
     if function_words:
         compiled_fw_data = compiled_data[:]
         for i, hand_fol in enumerate(compiled_fw_data):
-            compiled_fw_data[i] = [" ".join(get_funcwrds(sent)) for sent in hand_fol]
-        compiled_fw_data = ["\n".join(gloss_text) for gloss_text in compiled_fw_data]
-        for i, fw_datum in enumerate(compiled_fw_data):
-            if "\n" in fw_datum:
-                fw_datum = fw_datum.strip()
-                while "\n\n" in fw_datum:
-                    fw_datum = "\n".join(fw_datum.split("\n\n"))
-                compiled_fw_data[i] = fw_datum
+            compiled_fw_data[i] = [" ".join(get_funcwrds(sent, standard_word_forms, add_feats)) for sent in hand_fol]
+        compiled_fw_data = [" ".join(gloss_text) for gloss_text in compiled_fw_data]
+        compiled_fw_data = [i for i in compiled_fw_data if i != '']
+        for i, hand_datum in enumerate(compiled_fw_data):
+            if " " in hand_datum:
+                while "  " in hand_datum:
+                    hand_datum = " ".join(hand_datum.split("  "))
+                hand_datum = hand_datum.strip()
+                compiled_fw_data[i] = hand_datum
     for i, hand_fol in enumerate(compiled_data):
-        compiled_data[i] = [" ".join(get_tokens(sent)) for sent in hand_fol]
-    compiled_data = ["\n".join(gloss_text) for gloss_text in compiled_data]
+        compiled_data[i] = [" ".join(get_tokens(sent, standard_word_forms, add_feats)) for sent in hand_fol]
+    compiled_data = [" ".join(gloss_text) for gloss_text in compiled_data]
     if function_words:
         return [compiled_data, compiled_fw_data, hand_labels]
     else:
@@ -593,3 +594,4 @@ if __name__ == "__main__":
     # print(compile_hand_data(wb_data, True))
     # print(compile_doc_data(wb_data))
     # print(compile_doc_data(wb_data, True))
+    # print(compile_doc_data(wb_data, True, True))

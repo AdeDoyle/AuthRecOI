@@ -122,19 +122,53 @@ def conllu_parse(json_file, tok_style=2, tagged_only=True):
     return conllu_format
 
 
-def get_tokens(sentence):
+def get_tokens(sentence, standardise_tokens=False, add_feats=False):
     """return just the tokens from a parsed .conllu sentence"""
-    tokens = [tok.get("form") for tok in sentence]
+    if standardise_tokens:
+        if add_feats:
+            tokens = [f'{tok.get("lemma")}{tok.get("upos")}{tok.get("feats")}' for tok in sentence
+                      if tok.get("upos") != "PUNCT"]
+            tokens = ["".join(i.split(":")) for i in tokens]
+            tokens = ["".join(i.split("{")) for i in tokens]
+            tokens = ["".join(i.split("}")) for i in tokens]
+            tokens = ["".join(i.split(" ")) for i in tokens]
+            tokens = ["".join(i.split("'")) for i in tokens]
+        else:
+            tokens = [f'{tok.get("lemma")}{tok.get("upos")}' for tok in sentence if tok.get("upos") != "PUNCT"]
+        tokens = ["".join(i.split(".")) for i in tokens]
+    else:
+        if add_feats:
+            tokens = [f'{tok.get("form")}{tok.get("feats")}' for tok in sentence]
+        else:
+            tokens = [tok.get("form") for tok in sentence]
     return tokens
 
 
-def get_funcwrds(sentence):
+def get_funcwrds(sentence, standardise_tokens=False, add_feats=False):
     """return just the tokens from a parsed .conllu sentence whicha re function words"""
     func_sent = [i for i in sentence if i.get("upos") in function_words + ["X"]]
     func_sent = [i for i in func_sent if i.get("upos") != "X" or i.get("upos") == "X" and i.get("lemma") == "et"]
     func_sent = [i for i in func_sent if i.get("upos") != "ADP"
                  or i.get("upos") == "ADP" and "PronType" in i.get("feats")]
-    func_wrds = [tok.get("form") for tok in func_sent]
+
+    if standardise_tokens:
+        if add_feats:
+            func_wrds = [f'{tok.get("lemma")}{tok.get("upos")}{tok.get("feats")}' for tok in func_sent
+                         if tok.get("upos") != "PUNCT"]
+            func_wrds = ["".join(i.split(":")) for i in func_wrds]
+            func_wrds = ["".join(i.split("{")) for i in func_wrds]
+            func_wrds = ["".join(i.split("}")) for i in func_wrds]
+            func_wrds = ["".join(i.split(" ")) for i in func_wrds]
+            func_wrds = ["".join(i.split("'")) for i in func_wrds]
+        else:
+            func_wrds = [f'{tok.get("lemma")}{tok.get("upos")}' for tok in func_sent if tok.get("upos") != "PUNCT"]
+        func_wrds = ["".join(i.split(".")) for i in func_wrds]
+    else:
+        if add_feats:
+            func_wrds = [f'{tok.get("form")}{tok.get("feats")}' for tok in func_sent]
+        else:
+            func_wrds = [tok.get("form") for tok in func_sent]
+
     return func_wrds
 
 
