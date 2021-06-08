@@ -588,6 +588,11 @@ if __name__ == "__main__":
     # print(separate_hands(sg_data))
     # print(separate_columns(sg_data))
 
+    # print(len(separate_hands(wb_data)))
+    # print(len(separate_columns(wb_data)))
+    # print(len(separate_hands(sg_data)))
+    # print(len(separate_columns(sg_data)))
+
     # # Test compile_doc_data and compile_hand_data functions
 
     # print(compile_hand_data(wb_data))
@@ -595,3 +600,11 @@ if __name__ == "__main__":
     # print(compile_doc_data(wb_data))
     # print(compile_doc_data(wb_data, True))
     # print(compile_doc_data(wb_data, True, True))
+    # print(compile_doc_data(wb_data, True, True, True))
+
+    # print(compile_hand_data(sg_data))
+    # print(compile_hand_data(sg_data, True))
+    # print(compile_doc_data(sg_data))
+    # print(compile_doc_data(sg_data, True))
+    # print(compile_doc_data(sg_data, True, True))
+    # print(compile_doc_data(sg_data, True, True, True))

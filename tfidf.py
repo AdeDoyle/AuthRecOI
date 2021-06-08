@@ -101,19 +101,65 @@ if __name__ == "__main__":
     # # Function-words Only, Tokens Standardised, Features Added
     # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True, True, True)
 
+    # # Select Sg. Data
+
+    # # Tokenisation style 1
+
+    # # All Word-types, Natural Tokens, No Features
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"))
+
+    # # Function-words Only, Natural Tokens, No Features
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True)
+
+    # # All Word-types, Tokens Standardised, No Features
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), False, True)
+
+    # # Function-words Only, Tokens Standardised, No Features
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True, True)
+
+    # # Function-words Only, Tokens Standardised, Features Added
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True, True, True)
+
+    # # Tokenisation style 2
+
+    # # All Word-types, Natural Tokens, No Features
+    sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"))
+
+    # # Function-words Only, Natural Tokens, No Features
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True)
+
+    # # All Word-types, Tokens Standardised, No Features
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), False, True)
+
+    # # Function-words Only, Tokens Standardised, No Features
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True, True)
+
+    # # Function-words Only, Tokens Standardised, Features Added
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True, True, True)
+
+
+    # Test Wb.
     docs = wb_data[0]
     hand_names = wb_data[-1]
     reduced_docs = None
     if len(wb_data) == 3:
         reduced_docs = wb_data[1]
+    clusters = 4
+
+    # # Test Sg.
+    # docs = sg_data[0]
+    # hand_names = sg_data[-1]
+    # reduced_docs = None
+    # if len(sg_data) == 3:
+    #     reduced_docs = sg_data[1]
+    # clusters = 10
+
     hl_dict = {}
     handcount = 0
     for hand_name in sorted(list(set(hand_names))):
         hl_dict[hand_name] = handcount
         handcount += 1
     hand_labels = [hl_dict.get(i) for i in hand_names]
-
-    clusters = 4
 
     classifier = KMedoids(n_clusters=clusters, metric="cosine", random_state=0)
     km = k_medoids(docs, classifier, reduced_docs)
