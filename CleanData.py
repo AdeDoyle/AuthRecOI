@@ -510,26 +510,104 @@ def compile_doc_data(file, function_words=False, standard_word_forms=False, add_
     compiled_fw_data = list()
     for handlist in hand_data:
         hand = handlist[0].metadata.get("scribe")
-        if hand in ["Hand One (Prima Manus)", "Hand One (Prima Manus) and Hand Two"]:
+        # collect all glosses by rare hands in one group
+        if hand in ["Hand One (Prima Manus) and Hand Two",
+                    "Glossator C", "Glossator C?", "Glossator C+E",
+                    "Glossator D", "Glossator D?", "Glossator G", "Glossator G/C?",
+                    "Glossator _", "Glossator +"
+                    ]:
             compiled_data.append(handlist)
             hand_labels.append(hand)
+        # collect all Wb. Prima Manus glosses, then split them into any specified number of groups
+        elif hand == "Hand One (Prima Manus)":
+            # list points to split Prima Manus glosses, eg. ["7c", "14b", "18c"]
+            cutoffs = []
+            if cutoffs:
+                previous_cutoff = None
+                pos_cols = ["a", "b", "c", "d"]
+                for co_num, cutoff in enumerate(cutoffs):
+                    fol_cutoff = int(cutoff[:-1])
+                    col_cutoff = pos_cols.index(cutoff[-1:])
+                    # if this is the first division of text for this hand
+                    # add all glosses to the cutoff point to a list
+                    # add that list to list of gloss divisions for this hand
+                    if not previous_cutoff:
+                        break_index = 0
+                        for i, sent in enumerate(handlist):
+                            this_folcol = sent.metadata.get("reference")
+                            folcolpat = re.compile(r'^\d{1,3}[a-d]')
+                            folcolpatiter = folcolpat.finditer(this_folcol)
+                            for j in folcolpatiter:
+                                this_folcol = j.group()
+                            this_fol = int(this_folcol[:-1])
+                            this_col = pos_cols.index(this_folcol[-1:])
+                            if this_fol > fol_cutoff or (this_fol == fol_cutoff and this_col >= col_cutoff):
+                                previous_cutoff = break_index
+                                break
+                            else:
+                                break_index = i + 1
+                        compiled_data.append(handlist[:break_index])
+                        hand_labels.append(hand)
+                    # if this is neither the first nor the last division of text for this hand
+                    # add all glosses between the last cutoff point and this cutoff point to a list
+                    # add that list to list of gloss divisions for this hand
+                    else:
+                        break_index = 0
+                        for i, sent in enumerate(handlist):
+                            this_folcol = sent.metadata.get("reference")
+                            folcolpat = re.compile(r'^\d{1,3}[a-d]')
+                            folcolpatiter = folcolpat.finditer(this_folcol)
+                            for j in folcolpatiter:
+                                this_folcol = j.group()
+                            this_fol = int(this_folcol[:-1])
+                            this_col = pos_cols.index(this_folcol[-1:])
+                            if this_fol > fol_cutoff or (this_fol == fol_cutoff and this_col >= col_cutoff):
+                                compiled_data.append(handlist[previous_cutoff:break_index])
+                                hand_labels.append(hand)
+                                previous_cutoff = break_index
+                                break
+                            else:
+                                break_index = i + 1
+                    # if this is the last division of text for this hand
+                    # add all remaining glosses to a list
+                    # add that to list of gloss divisions for this hand
+                    if co_num + 1 == len(cutoffs):
+                        compiled_data.append(handlist[previous_cutoff:])
+                        hand_labels.append(hand)
+            else:
+                compiled_data.append(handlist)
+                hand_labels.append(hand)
         else:
             hand_folcol_list = list()
             cur_folcol = None
+            # iterate through sentences in each hand-list and get its folio and column information
             for i, sent in enumerate(handlist):
                 this_folcol = sent.metadata.get("reference")
                 folcolpat = re.compile(r'^\d{1,3}[a-d]')
                 folcolpatiter = folcolpat.finditer(this_folcol)
                 for j in folcolpatiter:
                     this_folcol = j.group()
+                # if this is the last sentence in the hand-list
+                # add the complete list of glosses for this hand on this folio and column to the compiled data list
                 if i+1 == len(handlist):
                     hand_labels.append(hand)
+                    hand_folcol_list.append(sent)
                     compiled_data.append(hand_folcol_list)
-                elif not cur_folcol or this_folcol != cur_folcol:
-                    hand_labels.append(hand)
+                # if this is the first folio and column update the current folio and column information,
+                # start a new list of glosses for this hand on the new folio and column
+                elif not cur_folcol:
                     cur_folcol = this_folcol
-                    compiled_data.append(hand_folcol_list)
                     hand_folcol_list = [sent]
+                # if this folio/column is different to the last one update the current folio and column information,
+                # add the complete list of glosses for the hand on the last folio and column to the compiled data list
+                # start a new list of glosses for this hand on the new folio and column
+                elif this_folcol != cur_folcol:
+                    hand_labels.append(hand)
+                    compiled_data.append(hand_folcol_list)
+                    cur_folcol = this_folcol
+                    hand_folcol_list = [sent]
+                # if this this folio/column is the same as the last one
+                # add the current sentence to the list of glosses for this hand on the current folio and column
                 elif this_folcol == cur_folcol:
                     hand_folcol_list.append(sent)
     if function_words:

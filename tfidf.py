@@ -11,8 +11,13 @@ from CleanData import compile_doc_data
 def tfidf(documents, reduced_documents=None):
     """Tokenise inputted documents and return raw tf*idf vectors of inputted documents"""
     if reduced_documents:
-        vocab = sorted(list(set([x for y in [i.split(" ") for i in reduced_documents] for x in y])))
-        vocab = [v.lower() for v in vocab]
+        vocab = sorted(list(set([
+            v.lower() for v in [
+                # [x for y in z for x in y] formula combines the contents of all sub-lists within a list:
+                # It takes a list, z, of sub-lists, y, containing items, x (in this case tokens)
+                # A new list is created containing each x from each y for each y in z
+                x for y in [i.split(" ") for i in reduced_documents] for x in y]
+        ])))
     else:
         vocab = None
     vectorizer = TfidfVectorizer(analyzer='word', token_pattern=r"(?u)\b[\wáéíóúↄḟṁṅæǽ⁊ɫ֊̃]+\b", vocabulary=vocab)
@@ -152,7 +157,7 @@ if __name__ == "__main__":
     # reduced_docs = None
     # if len(sg_data) == 3:
     #     reduced_docs = sg_data[1]
-    # clusters = 10
+    # clusters = 3
 
     hl_dict = {}
     handcount = 0
