@@ -1,9 +1,11 @@
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn_extra.cluster import KMedoids
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
-import numpy
+import matplotlib.colors as mplcol
+import numpy as np
 from LoadDocs import get_data, conllu_parse
 from CleanData import compile_doc_data
 
@@ -25,11 +27,11 @@ def tfidf(documents, reduced_documents=None):
     return vectors
 
 
-def k_medoids(documents, classifier, reduced_documents=None):
+def classify(documents, classifier, reduced_documents=None):
     """Returns raw k_medoid vectors for raw tf*idf vectors from inputted documents"""
     tfidf_doc = tfidf(documents, reduced_documents)
-    kmedoids = classifier.fit_predict(tfidf_doc)
-    return kmedoids
+    classification = classifier.fit_predict(tfidf_doc)
+    return classification
 
 
 def pca_2d(documents, pca_classifier, reduced_documents=None):
@@ -42,28 +44,50 @@ def pca_2d(documents, pca_classifier, reduced_documents=None):
 
 def pca_centres(classifier, pca_classifier):
     """Returns PCA dense vectors for center points of each cluster"""
-    centres = pca_classifier.transform(classifier.cluster_centers_.todense())
+    try:
+        centres = pca_classifier.transform(classifier.cluster_centers_)
+    except TypeError:
+        centres = pca_classifier.transform(classifier.cluster_centers_.todense())
     return centres
 
 
-def draw_subplots(data, colors, plotname, clusters, centres=None, cmap='viridis', header='Old Irish Gloss Clusters'):
+def draw_subplots(data, colours, plotname, centres=None, labels=None, header='Old Irish Gloss Clusters'):
 
     plot = plotname
 
     plot.axhline(0, color='#afafaf')
     plot.axvline(0, color='#afafaf')
 
-    for i in range(clusters):
-        try:
-            plot.scatter(data[i:, 0], data[i:, 1], s=30, c=colors, cmap=cmap)
-        except (KeyError, ValueError) as e:
-            pass
+    unique_colours = sorted(list(set(colours)))
+    if labels:
+        unique_labels = list()
+        for unicol in unique_colours:
+            first_inst = colours.index(unicol)
+            unique_labels.append(labels[first_inst])
 
-    if isinstance(centres, numpy.ndarray):
-        plot.scatter(centres[:, 0], centres[:, 1], marker="x", c='r')
 
-    plot.set_xlabel('Principal Component 1')
-    plot.set_ylabel('Principal Component 2')
+    col_dict = mplcol.TABLEAU_COLORS
+    col_list = [i for i in col_dict]
+    # print(col_list)
+    # print(col_dict)
+
+    for col_num in unique_colours:
+        colour_data = list()
+        for i, j in enumerate(data):
+            if colours[i] == col_num:
+                colour_data.append(j)
+        colour_data = np.array(colour_data)
+        x = [i[0] for i in colour_data]
+        y = [i[1] for i in colour_data]
+        if labels:
+            plot.scatter(x, y, s=30, c=col_dict.get(col_list[col_num - 1]), label=unique_labels[col_num])
+        else:
+            plot.scatter(x, y, s=30, c=col_dict.get(col_list[col_num - 1]), label=f"Potential Author {col_num + 1}")
+
+    if isinstance(centres, np.ndarray):
+        plot.scatter(centres[:, 0], centres[:, 1], marker="x", s=100, c='r')
+
+    plot.legend()
 
     plot.set_title(header)
 
@@ -166,15 +190,17 @@ if __name__ == "__main__":
         handcount += 1
     hand_labels = [hl_dict.get(i) for i in hand_names]
 
+    # classifier = KMeans(n_clusters=clusters)
     classifier = KMedoids(n_clusters=clusters, metric="cosine", random_state=0)
-    km = k_medoids(docs, classifier, reduced_docs)
+    km = classify(docs, classifier, reduced_docs)
     pca_classifier = PCA(n_components=2)
     pca_2d_matrix = pca_2d(docs, pca_classifier, reduced_docs)
     centres_matrix = pca_centres(classifier, pca_classifier)
 
     fig, (plot1, plot2) = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(20, 10))
-    draw_subplots(pca_2d_matrix, classifier.labels_, plot1, clusters, centres_matrix, header='Colours = Clusters')
-    draw_subplots(pca_2d_matrix, hand_labels, plot2, clusters, header='Colours = Topics (Hands)')
+    draw_subplots(pca_2d_matrix, classifier.labels_, plot1, centres=centres_matrix, header='Colours = Author Clusters')
+    draw_subplots(pca_2d_matrix, hand_labels, plot2, labels=hand_names, header='Colours = Scribal Hands')
+
     plt.show()
 
     # # TEST FUNCTIONS
