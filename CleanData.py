@@ -512,6 +512,7 @@ def compile_doc_data(file, function_words=False, standard_word_forms=False, add_
         hand = handlist[0].metadata.get("scribe")
         # collect all glosses by rare hands in one group
         if hand in ["Hand One (Prima Manus) and Hand Two",
+                    "Main Hand", "Main Hand (Ogam)", "Glossator A (Ogam)",
                     "Glossator C", "Glossator C?", "Glossator C+E",
                     "Glossator D", "Glossator D?", "Glossator G", "Glossator G/C?",
                     "Glossator _", "Glossator +"
