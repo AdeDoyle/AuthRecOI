@@ -219,7 +219,7 @@ def clean_unknown(sentence):
             elif tok_num == len(sentence) - 1:
                 cur_sent.append(tok_data)
                 # If all of the words in the compiled sentence are valid, Irish words (not exclusions)
-                # add the metadata tothe sentence, and concatenate it with any preceeding sentence splits
+                # add the metadata to the sentence, and concatenate it with any preceding sentence splits
                 if [i for i in [[
                     tok.get("lemma"),
                     tok.get("upos"),

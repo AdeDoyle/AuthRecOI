@@ -6,38 +6,84 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import matplotlib.colors as mplcol
 import numpy as np
+from math import log
+from sklearn.preprocessing import normalize as norm
+from scipy import sparse
 from LoadDocs import get_data, conllu_parse
 from CleanData import compile_doc_data
 
 
-def tfidf(documents, reduced_documents=None):
+def tf(docs):
+    termfreqs = dict()
+    doc = " ".join(docs)
+    doc = doc.split(" ")
+    doc = sorted(list(set(doc)))
+    for term in doc:
+        termfreqs[term] = [sing_doc.count(term) for sing_doc in docs]
+    return termfreqs
+
+
+def idf(term, docs):
+    big_d = len(docs)
+    denominator = 0
+    for doc in docs:
+        if term in doc:
+            denominator += 1
+    return log(big_d/(1 + denominator))
+
+
+def idf_doc(terms, docs):
+    termidfs = dict()
+    for term in terms:
+        termidfs[term] = idf(term, docs)
+    return termidfs
+
+
+def tfidf_manual(docs):
+    matrix = list()
+    termfreqs = tf(docs)
+    termidfs = idf_doc(termfreqs, docs)
+    for term in termfreqs:
+        termfreqs[term] = [i * termidfs.get(term) for i in termfreqs.get(term)]
+        matrix.append(termfreqs.get(term))
+    matrix = np.rot90(np.fliplr(np.array(matrix)))
+    matrix = norm(matrix, axis=1, norm='l2')
+    matrix = sparse.csr_matrix(matrix)
+    return matrix
+
+
+def tfidf(documents, reduced_documents=None, manual=False):
     """Tokenise inputted documents and return raw tf*idf vectors of inputted documents"""
-    if reduced_documents:
-        vocab = sorted(list(set([
-            v.lower() for v in [
-                # [x for y in z for x in y] formula combines the contents of all sub-lists within a list:
-                # It takes a list, z, of sub-lists, y, containing items, x (in this case tokens)
-                # A new list is created containing each x from each y for each y in z
-                x for y in [i.split(" ") for i in reduced_documents] for x in y]
-        ])))
+    if manual:
+        return tfidf_manual(documents)
     else:
-        vocab = None
-    vectorizer = TfidfVectorizer(analyzer='word', token_pattern=r"(?u)\b[\wáéíóúↄḟṁṅæǽ⁊ɫ֊̃]+\b", vocabulary=vocab)
-    vectors = vectorizer.fit_transform(documents)
-    return vectors
+        if reduced_documents:
+            vocab = sorted(list(set([
+                v.lower() for v in [
+                    # [x for y in z for x in y] formula combines the contents of all sub-lists within a list:
+                    # It takes a list, z, of sub-lists, y, containing items, x (in this case tokens)
+                    # A new list is created containing each x from each y for each y in z
+                    x for y in [i.split(" ") for i in reduced_documents] for x in y]
+            ])))
+        else:
+            vocab = None
+        vectorizer = TfidfVectorizer(analyzer='word', token_pattern=r"(?u)\b[\wáéíóúↄḟṁṅæǽ⁊ɫ֊̃]+\b", vocabulary=vocab,
+                                     smooth_idf=True)
+        vectors = vectorizer.fit_transform(documents)
+        return vectors
 
 
-def classify(documents, classifier, reduced_documents=None):
+def classify(documents, classifier, reduced_documents=None, manual=False):
     """Returns raw k_medoid vectors for raw tf*idf vectors from inputted documents"""
-    tfidf_doc = tfidf(documents, reduced_documents)
+    tfidf_doc = tfidf(documents, reduced_documents, manual)
     classification = classifier.fit_predict(tfidf_doc)
     return classification
 
 
-def pca_2d(documents, pca_classifier, reduced_documents=None):
+def pca_2d(documents, pca_classifier, reduced_documents=None, manual=False):
     """Performs Principal Component Analysis on documents inputted, returns an n-dimensional array of PCA dense vectors
        (usually a 2D array, number of dimensions depends on pca_classifier)"""
-    tfidf_doc = tfidf(documents, reduced_documents)
+    tfidf_doc = tfidf(documents, reduced_documents, manual)
     PCA_2D = pca_classifier.fit_transform(tfidf_doc.todense())
     return PCA_2D
 
@@ -87,7 +133,7 @@ def draw_subplots(data, colours, plotname, centres=None, labels=None, header='Ol
     if isinstance(centres, np.ndarray):
         plot.scatter(centres[:, 0], centres[:, 1], marker="x", s=100, c='r')
 
-    plot.legend()
+    plot.legend(loc="best")
 
     plot.set_title(header)
 
@@ -135,7 +181,7 @@ if __name__ == "__main__":
     # # Tokenisation style 1
 
     # # All Word-types, Natural Tokens, No Features
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"))
+    sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"))
 
     # # Function-words Only, Natural Tokens, No Features
     # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True)
@@ -152,7 +198,7 @@ if __name__ == "__main__":
     # # Tokenisation style 2
 
     # # All Word-types, Natural Tokens, No Features
-    sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"))
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"))
 
     # # Function-words Only, Natural Tokens, No Features
     # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True)
@@ -181,7 +227,7 @@ if __name__ == "__main__":
     # reduced_docs = None
     # if len(sg_data) == 3:
     #     reduced_docs = sg_data[1]
-    # clusters = 3
+    # clusters = 4
 
     hl_dict = {}
     handcount = 0
@@ -191,9 +237,11 @@ if __name__ == "__main__":
     hand_labels = [hl_dict.get(i) for i in hand_names]
 
     # classifier = KMeans(n_clusters=clusters)
-    classifier = KMedoids(n_clusters=clusters, metric="cosine", random_state=0)
+    classifier = KMedoids(n_clusters=clusters, metric="cosine", method="pam", random_state=0)
+    # km = classify(docs, classifier, reduced_docs, manual=True)
     km = classify(docs, classifier, reduced_docs)
     pca_classifier = PCA(n_components=2)
+    # pca_2d_matrix = pca_2d(docs, pca_classifier, reduced_docs, manual=True)
     pca_2d_matrix = pca_2d(docs, pca_classifier, reduced_docs)
     centres_matrix = pca_centres(classifier, pca_classifier)
 
