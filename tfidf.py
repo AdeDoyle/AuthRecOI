@@ -156,6 +156,9 @@ if __name__ == "__main__":
     # # Function-words Only, Tokens Standardised, No Features
     # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True, True)
 
+    # # All Word-types, Tokens Standardised, Features Added
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), False, True, True)
+
     # # Function-words Only, Tokens Standardised, Features Added
     # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True, True, True)
 
@@ -172,6 +175,9 @@ if __name__ == "__main__":
 
     # # Function-words Only, Tokens Standardised, No Features
     # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True, True)
+
+    # # All Word-types, Tokens Standardised, Features Added
+    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), False, True, True)
 
     # # Function-words Only, Tokens Standardised, Features Added
     # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True, True, True)
@@ -192,6 +198,9 @@ if __name__ == "__main__":
     # # Function-words Only, Tokens Standardised, No Features
     # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True, True)
 
+    # # All Word-types, Tokens Standardised, Features Added
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), False, True, True)
+
     # # Function-words Only, Tokens Standardised, Features Added
     # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True, True, True)
 
@@ -208,6 +217,9 @@ if __name__ == "__main__":
 
     # # Function-words Only, Tokens Standardised, No Features
     # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True, True)
+
+    # # All Word-types, Tokens Standardised, Features Added
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), False, True, True)
 
     # # Function-words Only, Tokens Standardised, Features Added
     # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True, True, True)
