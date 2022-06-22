@@ -181,7 +181,7 @@ if __name__ == "__main__":
     # # Tokenisation style 1
 
     # # All Word-types, Natural Tokens, No Features
-    sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"))
+    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"))
 
     # # Function-words Only, Natural Tokens, No Features
     # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True)
@@ -198,7 +198,7 @@ if __name__ == "__main__":
     # # Tokenisation style 2
 
     # # All Word-types, Natural Tokens, No Features
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"))
+    sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"))
 
     # # Function-words Only, Natural Tokens, No Features
     # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True)
