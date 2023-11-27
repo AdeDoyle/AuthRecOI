@@ -3,6 +3,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn_extra.cluster import KMedoids
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import matplotlib.colors as mplcol
 import numpy as np
@@ -14,6 +15,11 @@ from CleanData import compile_doc_data
 
 
 def tf(docs):
+    """Returns a term-frequency dictionary containing every term which occurs in a collection of documents.
+       The key is the term as a string.
+       The value is a list of integers, where each integer represents the number of times a particular term is used in
+       a given document, and the list contains an integer for each document in the collection of documents.
+       Format: {"term1"; [int-doc1, int-doc2, int-doc3, ...], "term2"; [int-doc1, int-doc2, int-doc3, ...], ...}"""
     termfreqs = dict()
     doc = " ".join(docs)
     doc = doc.split(" ")
@@ -24,6 +30,7 @@ def tf(docs):
 
 
 def idf(term, docs):
+    """Returns the inverse document frequency for a single term in a collection of documents."""
     big_d = len(docs)
     denominator = 0
     for doc in docs:
@@ -33,6 +40,10 @@ def idf(term, docs):
 
 
 def idf_doc(terms, docs):
+    """Returns a dictionary of inverse document frequencies for a list of terms in a collection of documents.
+       The key is the term as a string.
+       The value is the inverse document frequency for that term in the collection of documents (probably a float).
+       Format: {"term1"; float-doc1, "term2"; float-doc2, ...}"""
     termidfs = dict()
     for term in terms:
         termidfs[term] = idf(term, docs)
@@ -40,61 +51,91 @@ def idf_doc(terms, docs):
 
 
 def tfidf_manual(docs):
+    """Returns raw tf*idf vectors of inputted documents.
+       Vectors generated manually."""
     matrix = list()
+    # Get Term Frequencies dict for each unique term in all docs
     termfreqs = tf(docs)
+    # Get Inverse document frequencies dictionary for each term in all docs
     termidfs = idf_doc(termfreqs, docs)
+    # Multiply each term frequency by its inverse document frequency
     for term in termfreqs:
         termfreqs[term] = [i * termidfs.get(term) for i in termfreqs.get(term)]
+        # Add an array of tf*idf scores (one for each document) for this term to the matrix
         matrix.append(termfreqs.get(term))
+    # Reorientate the matrix (flip it left to right, then rotate 90 degrees counterclockwise)
+    # Now the vectors for each document are top-to-bottom instead of left-to-right
     matrix = np.rot90(np.fliplr(np.array(matrix)))
+    # # Find L2 Norm (Euclidean distance) of vectors in matrix
     matrix = norm(matrix, axis=1, norm='l2')
+    # Turn the matrix into a compressed sparse row matrix
     matrix = sparse.csr_matrix(matrix)
     return matrix
 
 
 def tfidf(documents, reduced_documents=None, manual=False):
-    """Tokenise inputted documents and return raw tf*idf vectors of inputted documents"""
+    """Tokenise inputted documents and return raw tf*idf vectors of inputted documents
+       Vectors generated using sklearn's TfidfVectorizer."""
     if manual:
         return tfidf_manual(documents)
     else:
+        # Create a vocab list containing only unique tokens from the reduced documents
         if reduced_documents:
             vocab = sorted(list(set([
                 v.lower() for v in [
                     # [x for y in z for x in y] formula combines the contents of all sub-lists within a list:
-                    # It takes a list, z, of sub-lists, y, containing items, x (in this case tokens)
-                    # A new list is created containing each x from each y for each y in z
+                    # It takes a list, z (all reduced documents), of sub-lists, y (individual reduced documents),
+                    # each containing items, x (in this case tokens).
+                    # From these a new list is created containing each x from each y for each y in z
                     x for y in [i.split(" ") for i in reduced_documents] for x in y]
             ])))
         else:
             vocab = None
+        # Vectorise the content of the documents (or reduced documents) using TfidfVectorizer
+        # token pattern makes it possible to tokenise based on the unicode contents of Irish datasets
+        # (unicode flag + word boundary + 1 or more possible characters for Old Irish tokens + word boundary)
         vectorizer = TfidfVectorizer(analyzer='word', token_pattern=r"(?u)\b[\wáéíóúↄḟṁṅæǽ⁊ɫ֊̃]+\b", vocabulary=vocab,
                                      smooth_idf=True)
         vectors = vectorizer.fit_transform(documents)
         return vectors
 
 
-def classify(documents, classifier, reduced_documents=None, manual=False):
-    """Returns raw k_medoid vectors for raw tf*idf vectors from inputted documents"""
-    tfidf_doc = tfidf(documents, reduced_documents, manual)
-    classification = classifier.fit_predict(tfidf_doc)
-    return classification
+def build_classifier(classifier_type, num_clusters, metric="cosine", method="pam", random_state=0):
+    """Returns k-means or k_medoid classifier model"""
+    if classifier_type == "k-means":
+        classifier_model = KMeans(num_clusters)
+    elif classifier_type == "k-medoids":
+        classifier_model = KMedoids(num_clusters, metric=metric, method=method, random_state=random_state)
+    else:
+        raise RuntimeError(f"No classifier, '{classifier_type}', is possible, only 'k-means' or 'k-medoids'.")
+    return classifier_model
 
 
-def pca_2d(documents, pca_classifier, reduced_documents=None, manual=False):
+def reduce_dimensions(tfidf_vecs, reduction_type, classifier_type, n_components=2,
+                      learning_rate='auto', init='random', perplexity=30):
     """Performs Principal Component Analysis on documents inputted, returns an n-dimensional array of PCA dense vectors
        (usually a 2D array, number of dimensions depends on pca_classifier)"""
-    tfidf_doc = tfidf(documents, reduced_documents, manual)
-    PCA_2D = pca_classifier.fit_transform(tfidf_doc.todense())
-    return PCA_2D
 
-
-def pca_centres(classifier, pca_classifier):
-    """Returns PCA dense vectors for center points of each cluster"""
-    try:
-        centres = pca_classifier.transform(classifier.cluster_centers_)
-    except TypeError:
-        centres = pca_classifier.transform(classifier.cluster_centers_.todense())
-    return centres
+    if reduction_type == "PCA":
+        # Create PCA classifier
+        pca_classifier = PCA(n_components)
+        # Fit PCA Classifier to tf*idf data
+        PCA_2D = pca_classifier.fit_transform(tfidf_vecs.todense())
+        # Get PCA dense vectors for center points of each cluster
+        try:
+            centres_matrix = pca_classifier.transform(classifier_type.cluster_centers_)
+        except TypeError:
+            centres_matrix = pca_classifier.transform(classifier_type.cluster_centers_.todense())
+        return [PCA_2D, centres_matrix]
+    elif reduction_type == "tSNE":
+        # Create t-SNE classifier
+        tsne_classifier = TSNE(n_components=n_components, learning_rate=learning_rate, init=init, perplexity=perplexity)
+        # Fit t-SNE Classifier to tf*idf data
+        tsne_matrix = tsne_classifier.fit_transform(tfidf_vecs.todense())
+        return [tsne_matrix]
+    else:
+        raise RuntimeError(f"No dimensionality reduction method ,'{reduction_type}', is possible, "
+                           f"only 'PCA' or 'tSNE'.")
 
 
 def draw_subplots(data, colours, plotname, centres=None, labels=None, header='Old Irish Gloss Clusters'):
@@ -145,123 +186,147 @@ if __name__ == "__main__":
     # # Tokenisation style 1
 
     # # All Word-types, Natural Tokens, No Features
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1))
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1))
 
     # # Function-words Only, Natural Tokens, No Features
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True)
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True)
 
     # # All Word-types, Tokens Standardised, No Features
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), False, True)
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), False, True)
 
     # # Function-words Only, Tokens Standardised, No Features
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True, True)
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True, True)
 
     # # All Word-types, Tokens Standardised, Features Added
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), False, True, True)
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), False, True, True)
 
     # # Function-words Only, Tokens Standardised, Features Added
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True, True, True)
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=1), True, True, True)
 
     # # Tokenisation style 2
 
     # # All Word-types, Natural Tokens, No Features
-    wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2))
+    data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2))
 
     # # Function-words Only, Natural Tokens, No Features
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True)
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True)
 
     # # All Word-types, Tokens Standardised, No Features
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), False, True)
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), False, True)
 
     # # Function-words Only, Tokens Standardised, No Features
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True, True)
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True, True)
 
     # # All Word-types, Tokens Standardised, Features Added
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), False, True, True)
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), False, True, True)
 
     # # Function-words Only, Tokens Standardised, Features Added
-    # wb_data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True, True, True)
+    # data = compile_doc_data(conllu_parse(get_data("Wb. Manual Tokenisation.json"), tok_style=2), True, True, True)
+
 
     # # Select Sg. Data
 
     # # Tokenisation style 1
 
     # # All Word-types, Natural Tokens, No Features
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"))
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"))
 
     # # Function-words Only, Natural Tokens, No Features
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True)
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True)
 
     # # All Word-types, Tokens Standardised, No Features
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), False, True)
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), False, True)
 
     # # Function-words Only, Tokens Standardised, No Features
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True, True)
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True, True)
 
     # # All Word-types, Tokens Standardised, Features Added
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), False, True, True)
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), False, True, True)
 
     # # Function-words Only, Tokens Standardised, Features Added
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True, True, True)
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_combined_POS.conllu"), True, True, True)
 
     # # Tokenisation style 2
 
     # # All Word-types, Natural Tokens, No Features
-    sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"))
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"))
 
     # # Function-words Only, Natural Tokens, No Features
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True)
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True)
 
     # # All Word-types, Tokens Standardised, No Features
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), False, True)
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), False, True)
 
     # # Function-words Only, Tokens Standardised, No Features
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True, True)
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True, True)
 
     # # All Word-types, Tokens Standardised, Features Added
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), False, True, True)
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), False, True, True)
 
     # # Function-words Only, Tokens Standardised, Features Added
-    # sg_data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True, True, True)
+    # data = compile_doc_data(get_data("sga_dipsgg-ud-test_split_POS.conllu"), True, True, True)
 
-
-    # Test Wb.
-    docs = wb_data[0]
-    hand_names = wb_data[-1]
     reduced_docs = None
-    if len(wb_data) == 3:
-        reduced_docs = wb_data[1]
-    clusters = 4
-
-    # # Test Sg.
-    # docs = sg_data[0]
-    # hand_names = sg_data[-1]
-    # reduced_docs = None
-    # if len(sg_data) == 3:
-    #     reduced_docs = sg_data[1]
-    # clusters = 4
-
-    hl_dict = {}
+    if len(data) == 3:
+        reduced_docs = data[1]
+    docs = data[0]
+    hand_names = data[-1]
+    hand_label_dict = {}
     handcount = 0
     for hand_name in sorted(list(set(hand_names))):
-        hl_dict[hand_name] = handcount
+        hand_label_dict[hand_name] = handcount
         handcount += 1
-    hand_labels = [hl_dict.get(i) for i in hand_names]
+    hand_labels = [hand_label_dict.get(i) for i in hand_names]
 
-    # classifier = KMeans(n_clusters=clusters)
-    classifier = KMedoids(n_clusters=clusters, metric="cosine", method="pam", random_state=0)
-    # km = classify(docs, classifier, reduced_docs, manual=True)
-    km = classify(docs, classifier, reduced_docs)
-    pca_classifier = PCA(n_components=2)
-    # pca_2d_matrix = pca_2d(docs, pca_classifier, reduced_docs, manual=True)
-    pca_2d_matrix = pca_2d(docs, pca_classifier, reduced_docs)
-    centres_matrix = pca_centres(classifier, pca_classifier)
 
+    # # Set Parameters
+
+    # # Select Clustering Algorithm
+    # classification = "k-means"
+    classification = "k-medoids"
+
+    # # Set number of Clusters
+    clusters = 4
+
+    # # Select Dimensionality Reduction Method
+    d_reduce = "PCA"
+    # d_reduce = "tSNE"
+
+    # # Set Dimensionality Reduction Parameters
+    n_components = 2  # Dimension of the embedded space.
+    # learning_rate = 'auto'
+    learning_rate = 10.0  # The learning rate for t-SNE is usually in the range [10.0, 1000.0]
+    init = 'random'
+    # init = 'pca'  # PCA initialization is usually more globally stable than random initialization.
+    perplexity = 30  # The perplexity must be less than the number of samples.
+
+
+    # # Plot tf*idf of Data
+
+    # # Get tf*idf of documents
+    tfidf_vectors = tfidf(docs, reduced_docs)
+
+    # # Build a Classifier
+    classifier = build_classifier(classification, clusters)
+
+    # # Fit Classifier to tf*idf data (create multi-dimensional clusters)
+    classifier.fit_predict(tfidf_vectors)
+
+    # Reduce Dimensionality of Clusters
+    data_2D = reduce_dimensions(tfidf_vectors, d_reduce, classifier, n_components, learning_rate, init, perplexity)
+
+    centres_matrix = None
+    twoD_matrix = data_2D[0]
+    if d_reduce == "PCA":
+        centres_matrix = data_2D[1]
+
+    # Plot the 2D Matrix
     fig, (plot1, plot2) = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(20, 10))
-    draw_subplots(pca_2d_matrix, classifier.labels_, plot1, centres=centres_matrix, header='Colours = Author Clusters')
-    draw_subplots(pca_2d_matrix, hand_labels, plot2, labels=hand_names, header='Colours = Scribal Hands')
+    draw_subplots(twoD_matrix, classifier.labels_, plot1, centres=centres_matrix, header='Colours = Author Clusters')
+    draw_subplots(twoD_matrix, hand_labels, plot2, labels=hand_names, header='Colours = Scribal Hands')
 
     plt.show()
+
 
     # # TEST FUNCTIONS
 
