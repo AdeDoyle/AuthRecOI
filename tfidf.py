@@ -127,7 +127,7 @@ def reduce_dimensions(tfidf_vecs, reduction_type, classifier_type, n_components=
         except TypeError:
             centres_matrix = pca_classifier.transform(classifier_type.cluster_centers_.todense())
         return [PCA_2D, centres_matrix]
-    elif reduction_type == "tSNE":
+    elif reduction_type == "t-SNE":
         # Create t-SNE classifier
         tsne_classifier = TSNE(n_components=n_components, learning_rate=learning_rate, init=init, perplexity=perplexity)
         # Fit t-SNE Classifier to tf*idf data
@@ -135,48 +135,143 @@ def reduce_dimensions(tfidf_vecs, reduction_type, classifier_type, n_components=
         return [tsne_matrix]
     else:
         raise RuntimeError(f"No dimensionality reduction method ,'{reduction_type}', is possible, "
-                           f"only 'PCA' or 'tSNE'.")
+                           f"only 'PCA' or 't-SNE'.")
 
 
-def draw_subplots(data, colours, plotname, centres=None, labels=None, header='Old Irish Gloss Clusters'):
+def draw_subplots(subplot, subplot_title, matrix_data, colour_numbers, colour_labels=None,
+                  shape_numbers=None, shape_labels=None, centres=None):
+    """Draws an individual sub-plot of cluster data to be fit within an overall plot"""
 
-    plot = plotname
+    # Initially identify the plot variable
+    plot = subplot
 
+    # Add horizontal and vertical lines to the plot across the axis
     plot.axhline(0, color='#afafaf')
     plot.axvline(0, color='#afafaf')
 
-    unique_colours = sorted(list(set(colours)))
-    if labels:
-        unique_labels = list()
-        for unicol in unique_colours:
-            first_inst = colours.index(unicol)
-            unique_labels.append(labels[first_inst])
+    # Ensure colour and shape numbers are lists, not numpy arrays, so that they can be indexed
+    if isinstance(colour_numbers, np.ndarray):
+        colour_numbers = list(colour_numbers)
+    if isinstance(shape_numbers, np.ndarray):
+        shape_numbers = list(shape_numbers)
 
+    # Get a sorted list of the individual numbers corresponding to data intended to be represented using colour
+    unique_colour_numbers = sorted(list(set(colour_numbers)))
 
+    # If labels have been provided corresponding to the colour data, create a corresponding list
+    # containing each unique label, sorted to match the sorting of the colour data numbers list
+    unique_colour_labels = None
+    if colour_labels:
+        # If a single string has been passed instead of a list of colour labels
+        # Generate a list of colour labels by combining the string with each of the colour numbers (+1 for readability)
+        if isinstance(colour_labels, str):
+            colour_labels = [f"{colour_labels} {sorted_num + 1}" for sorted_num in colour_numbers]
+        unique_colour_labels = list()
+        for unique_colour_num in unique_colour_numbers:
+            first_inst = colour_numbers.index(unique_colour_num)
+            unique_colour_labels.append(colour_labels[first_inst])
+    # If no colour labels have been provided, create a list of corresponding labels numbering the data (starting at 1)
+    else:
+        unique_colour_labels = [f"Grouping {sorted_num + 1}" for sorted_num in shape_numbers]
+
+    # Identify a discrete colour palette to utilise
     col_dict = mplcol.TABLEAU_COLORS
     col_list = [i for i in col_dict]
-    # print(col_list)
-    # print(col_dict)
 
-    for col_num in unique_colours:
-        colour_data = list()
-        for i, j in enumerate(data):
-            if colours[i] == col_num:
-                colour_data.append(j)
-        colour_data = np.array(colour_data)
-        x = [i[0] for i in colour_data]
-        y = [i[1] for i in colour_data]
-        if labels:
-            plot.scatter(x, y, s=30, c=col_dict.get(col_list[col_num - 1]), label=unique_labels[col_num])
+    # Identify a dictionary of acceptable shapes and appropriate sizes to utilise
+    shape_dict = {"o": 30, "p": 50, "*": 60, "d": 30, "X": 60, "s": 30, "^": 30, "H": 60, "8": 60}
+    shape_list = [i for i in shape_dict]
+
+    # If shape data has been passed as an argument as well as colour data
+    unique_shape_numbers = None
+    if isinstance(shape_numbers, list):
+
+        # Get a sorted list of the individual numbers corresponding to data intended to be represented using shapes
+        unique_shape_numbers = sorted(list(set(shape_numbers)))
+
+        # If labels have been provided corresponding to the shape data, create a corresponding list
+        # containing each unique label, sorted to match the sorting of the shape data numbers list
+        unique_shape_labels = None
+        if shape_labels:
+            # If a single string has been passed instead of a list of shape labels
+            # Generate a list of shape labels by combining the string with each of the shape numbers (+1 as above)
+            if isinstance(shape_labels, str):
+                shape_labels = [f"{shape_labels} {sorted_num + 1}" for sorted_num in shape_numbers]
+            unique_shape_labels = list()
+            for unique_shape_num in unique_shape_numbers:
+                first_inst = shape_numbers.index(unique_shape_num)
+                unique_shape_labels.append(shape_labels[first_inst])
+        # If no shape labels have been provided, create a list of labels numbering the data (starting at 1)
         else:
-            plot.scatter(x, y, s=30, c=col_dict.get(col_list[col_num - 1]), label=f"Potential Author {col_num + 1}")
+            unique_shape_labels = [f"Cluster {sorted_num + 1}" for sorted_num in shape_numbers]
 
+    # Raise an error if shape data has been passed as anything other than a list or an array
+    elif shape_numbers:
+        raise RuntimeError("Shape number data not in list form")
+
+    # If shape data has been passed as an argument as well as colour data
+    if isinstance(shape_numbers, list):
+        # For each unique grouping (generated cluster or identified hand) in the colour data
+        for unique_colour_num in unique_colour_numbers:
+            # For each unique grouping (generated cluster or identified hand) in the shape data
+            for unique_shape_num in unique_shape_numbers:
+                colour_shape_data = list()
+                # For every data point (matrix coordinates) in the matrix data
+                for data_index, coordinates in enumerate(matrix_data):
+                    # If that data point is linked to the unique grouping (hand and cluster combined)
+                    # i.e. both the colour number at the same index in the colour numbers list and
+                    # the shape number at the same index in the shape numbers list match the unique grouping
+                    # Add that data point to the colour/shape data list
+                    if (colour_numbers[data_index] == unique_colour_num
+                            and shape_numbers[data_index] == unique_shape_num):
+                        colour_shape_data.append(coordinates)
+                colour_shape_data = np.array(colour_shape_data)
+
+                # Once the colour data list of coordinates for that unique grouping is complete plot it on the graph
+                if len(colour_shape_data) > 0:
+                    x = [i[0] for i in colour_shape_data]
+                    y = [i[1] for i in colour_shape_data]
+                    shape = shape_list[unique_shape_num]
+                    col_label = unique_colour_labels[unique_colour_num]
+                    if unique_shape_labels:
+                        shape_label = unique_shape_labels[unique_shape_num]
+                        combined_label = f"{col_label} / {shape_label}"
+                    else:
+                        combined_label = col_label
+                    plot.scatter(x, y, s=shape_dict.get(shape), c=col_dict.get(col_list[unique_colour_num - 1]),
+                                 marker=shape, label=combined_label)
+
+    # If only colour data has been passed as an argument
+    elif not shape_numbers:
+        # For each unique grouping (generated cluster or identified hand) in the colour data
+        for unique_colour_num in unique_colour_numbers:
+            colour_data = list()
+            # For every data point (matrix coordinates) in the matrix data
+            for i, coordinates in enumerate(matrix_data):
+                # If that data point is linked to the unique grouping (hand or cluster)
+                # i.e. the colour number at the same index in the colour numbers list matches the unique grouping
+                # Add that data point to the colour data list
+                if colour_numbers[i] == unique_colour_num:
+                    colour_data.append(coordinates)
+            colour_data = np.array(colour_data)
+
+            # Once the colour data list of coordinates for that unique grouping is complete plot it on the graph
+            x = [i[0] for i in colour_data]
+            y = [i[1] for i in colour_data]
+            plot.scatter(x, y, s=30, c=col_dict.get(col_list[unique_colour_num - 1]),
+                         label=unique_colour_labels[unique_colour_num])
+
+    # Testing to see if centres data is not null in the usual way will cause a ValueError if it is an array
+    # Because centres data can either be null or an array, test to see if it is an array
+    # If so, mark centres data on the scatter plot
     if isinstance(centres, np.ndarray):
         plot.scatter(centres[:, 0], centres[:, 1], marker="x", s=100, c='r')
 
-    plot.legend(loc="best")
+    # Include the legend in the plot in the best available position (avoiding any datapoints)
+    plot.legend(loc="best", fontsize="small")
 
-    plot.set_title(header)
+    # Include the subplot title in the plot
+    plot.set_title(subplot_title)
 
 
 if __name__ == "__main__":
@@ -276,7 +371,7 @@ if __name__ == "__main__":
     for hand_name in sorted(list(set(hand_names))):
         hand_label_dict[hand_name] = handcount
         handcount += 1
-    hand_labels = [hand_label_dict.get(i) for i in hand_names]
+    hand_numbers = [hand_label_dict.get(i) for i in hand_names]
 
 
     # # Set Parameters
@@ -286,11 +381,11 @@ if __name__ == "__main__":
     classification = "k-medoids"
 
     # # Set number of Clusters
-    clusters = 4
+    clusters = 3
 
     # # Select Dimensionality Reduction Method
     d_reduce = "PCA"
-    # d_reduce = "tSNE"
+    # d_reduce = "t-SNE"
 
     # # Set Dimensionality Reduction Parameters
     n_components = 2  # Dimension of the embedded space.
@@ -306,7 +401,7 @@ if __name__ == "__main__":
     # # Get tf*idf of documents
     tfidf_vectors = tfidf(docs, reduced_docs)
 
-    # # Build a Classifier
+    # # Build a Classifier Using either the K-means or K-medoids Clustering Algorithm
     classifier = build_classifier(classification, clusters)
 
     # # Fit Classifier to tf*idf data (create multi-dimensional clusters)
@@ -321,9 +416,17 @@ if __name__ == "__main__":
         centres_matrix = data_2D[1]
 
     # Plot the 2D Matrix
-    fig, (plot1, plot2) = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(20, 10))
-    draw_subplots(twoD_matrix, classifier.labels_, plot1, centres=centres_matrix, header='Colours = Author Clusters')
-    draw_subplots(twoD_matrix, hand_labels, plot2, labels=hand_names, header='Colours = Scribal Hands')
+    fig, (plot) = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(10, 10))
+    draw_subplots(plot, f"Colours = {d_reduce} Clusters\nShapes = Scribal Hands", twoD_matrix,
+                  classifier.labels_, f"{d_reduce} Cluster", hand_numbers, hand_names)
+
+    # fig, (plot1, plot2, plot3) = plt.subplots(1, 3, sharex=False, sharey=False, figsize=(20, 10))
+    # draw_subplots(plot1, 'Colours = Author Clusters', twoD_matrix,
+    #               classifier.labels_, "Potential Author", centres=centres_matrix)
+    # draw_subplots(plot2, 'Colours = Scribal Hands', twoD_matrix,
+    #               hand_numbers, hand_names)
+    # draw_subplots(plot3, 'Colours = Scribal Hands\nShapes = Clusters', twoD_matrix,
+    #               hand_numbers, hand_names, classifier.labels_)
 
     plt.show()
 
