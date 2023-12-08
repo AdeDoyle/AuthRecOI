@@ -9,6 +9,8 @@ import matplotlib.colors as mplcol
 import numpy as np
 from math import log
 from sklearn.preprocessing import normalize as norm
+from sklearn import metrics
+from pylab import rcParams
 from scipy import sparse
 from LoadDocs import get_data, conllu_parse
 from CleanData import compile_doc_data
@@ -100,12 +102,13 @@ def tfidf(documents, reduced_documents=None, manual=False):
         return vectors
 
 
-def build_classifier(classifier_type, num_clusters, metric="cosine", method="pam", random_state=0):
+def build_classifier(classifier_type, num_clusters, method="pam", random_state=0):
     """Returns k-means or k_medoid classifier model"""
     if classifier_type == "k-means":
         classifier_model = KMeans(num_clusters)
     elif classifier_type == "k-medoids":
-        classifier_model = KMedoids(num_clusters, metric=metric, method=method, random_state=random_state)
+        distance_metric = "cosine"
+        classifier_model = KMedoids(num_clusters, metric=distance_metric, method=method, random_state=random_state)
     else:
         raise RuntimeError(f"No classifier, '{classifier_type}', is possible, only 'k-means' or 'k-medoids'.")
     return classifier_model
@@ -274,6 +277,76 @@ def draw_subplots(subplot, subplot_title, matrix_data, colour_numbers, colour_la
     plot.set_title(subplot_title)
 
 
+def get_single_sil(vectors, clustering_algorithm, k_value):
+
+    if clustering_algorithm == "k-medoids":
+        distance_metric = "cosine"
+        k_averages = KMedoids(n_clusters=k_value, metric=distance_metric, random_state=1).fit(vectors)
+    elif clustering_algorithm == "k-means":
+        distance_metric = "euclidean"
+        k_averages = KMeans(n_clusters=k_value, random_state=1).fit(vectors)
+    else:
+        raise RuntimeError(f"Classification type, {clustering_algorithm}, is not possible.")
+
+    sil_score = metrics.silhouette_score(vectors, k_averages.labels_, metric=distance_metric)
+
+    return sil_score
+
+
+def get_sils(vectors, clustering_algorithm, k_min=1, k_max=10):
+    """Generates Silhouette scores for a range of k values"""
+
+    if clustering_algorithm == "k-medoids":
+        distance_metric = "cosine"
+        k_averages = [KMedoids(n_clusters=k, metric=distance_metric, random_state=1).fit(vectors)
+                        for k in range(k_min, k_max)]
+    elif clustering_algorithm == "k-means":
+        distance_metric = "euclidean"
+        k_averages = [KMeans(n_clusters=k, random_state=1).fit(vectors)
+                        for k in range(k_min, k_max)]
+    else:
+        raise RuntimeError(f"Classification type, {clustering_algorithm}, is not possible.")
+
+    score_list = [metrics.silhouette_score(vectors, model.labels_, metric=distance_metric)
+                  for model in k_averages[1:]]
+
+    return score_list
+
+
+def plot_sils(silhouette_scores, title="Silhouette Curve to Predict Optimal k-clusters", k_min=2, k_max=10):
+    """Plots a graph of Silhouette scores"""
+
+    rcParams['figure.figsize'] = 16, 5
+    plt.plot(range(k_min, k_max), silhouette_scores, "bo-", color="blue", linewidth=3, markersize=5, label="Silhouette Curve")
+    plt.xlabel("$k$", fontsize=14, family="Arial")
+    plt.ylabel("Silhouette Score", fontsize=14, family="Arial")
+    plt.grid(which="major", color="#cccccc", linestyle="--")
+
+    plt.title(title, fontsize=14, family="Arial")
+
+    k = np.argmax(silhouette_scores) + 2
+
+    plt.axvline(x=k, linestyle="--", c="green", linewidth=3, label=f"Optimal No. of Clusters: {k}")
+
+    plt.scatter(k, silhouette_scores[k-2], c="red", s=400)
+
+    plt.legend(shadow=True)
+
+    plt.show()
+
+
+def silhouette_vectors(vectors, clustering_algorithm, title="Silhouette Curve to Predict Optimal k-clusters",
+                       k_min=1, k_max=10):
+    """Both creates and plots Silhouette scores for a range of k values"""
+
+    scores = get_sils(vectors, clustering_algorithm, k_min, k_max)
+
+    if k_min <= 1:
+        k_min = 2
+
+    plot_sils(scores, title, k_min, k_max)
+
+
 if __name__ == "__main__":
 
     # # Select Wb. Data
@@ -401,6 +474,9 @@ if __name__ == "__main__":
     # # Get tf*idf of documents
     tfidf_vectors = tfidf(docs, reduced_docs)
 
+    # Get single silhouette score for selected parameters
+    print(f"Silhouette Score for {clusters} clusters: {get_single_sil(tfidf_vectors, classification, clusters)}")
+
     # # Build a Classifier Using either the K-means or K-medoids Clustering Algorithm
     classifier = build_classifier(classification, clusters)
 
@@ -429,6 +505,9 @@ if __name__ == "__main__":
     #               hand_numbers, hand_names, classifier.labels_)
 
     plt.show()
+
+    # # Plot Silhouette scores for k values in range 1-10
+    # silhouette_vectors(tfidf_vectors, classification)
 
 
     # # TEST FUNCTIONS
